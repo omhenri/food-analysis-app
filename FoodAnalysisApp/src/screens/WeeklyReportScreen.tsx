@@ -8,19 +8,25 @@ import {
   TouchableOpacity,
   ScrollView,
 } from 'react-native';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { StackNavigationProp } from '@react-navigation/stack';
 import { WeeklyReportService, WeeklyReportData } from '../services/WeeklyReportService';
 import { ComparisonCard } from '../components/ComparisonCard';
 import { Colors, Spacing, BorderRadius, FontSizes } from '../constants/theme';
 
-interface WeeklyReportScreenProps {
-  weekId: number;
-  onBackPress: () => void;
-}
+type RecordsStackParamList = {
+  PastRecords: undefined;
+  DayDetail: { day: any };
+  WeeklyReport: { weekId: number };
+};
 
-export const WeeklyReportScreen: React.FC<WeeklyReportScreenProps> = ({
-  weekId,
-  onBackPress,
-}) => {
+type WeeklyReportScreenRouteProp = RouteProp<RecordsStackParamList, 'WeeklyReport'>;
+type WeeklyReportScreenNavigationProp = StackNavigationProp<RecordsStackParamList, 'WeeklyReport'>;
+
+export const WeeklyReportScreen: React.FC = () => {
+  const navigation = useNavigation<WeeklyReportScreenNavigationProp>();
+  const route = useRoute<WeeklyReportScreenRouteProp>();
+  const { weekId } = route.params;
   const [reportData, setReportData] = useState<WeeklyReportData | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -218,7 +224,7 @@ export const WeeklyReportScreen: React.FC<WeeklyReportScreenProps> = ({
           <TouchableOpacity style={styles.retryButton} onPress={loadWeeklyReport}>
             <Text style={styles.retryButtonText}>Retry</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.backButton} onPress={onBackPress}>
+          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
             <Text style={styles.backButtonText}>Go Back</Text>
           </TouchableOpacity>
         </View>
@@ -231,7 +237,7 @@ export const WeeklyReportScreen: React.FC<WeeklyReportScreenProps> = ({
       <View style={styles.content}>
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity style={styles.backButtonHeader} onPress={onBackPress}>
+          <TouchableOpacity style={styles.backButtonHeader} onPress={() => navigation.goBack()}>
             <Text style={styles.backButtonHeaderText}>← Back</Text>
           </TouchableOpacity>
           <View style={styles.headerInfo}>

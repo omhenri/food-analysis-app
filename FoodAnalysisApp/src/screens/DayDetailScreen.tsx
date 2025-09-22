@@ -8,6 +8,8 @@ import {
   TouchableOpacity,
   ScrollView,
 } from 'react-native';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { StackNavigationProp } from '@react-navigation/stack';
 import { Day, AnalysisResult } from '../models/types';
 import { MealAnalysisCard } from '../components/MealAnalysisCard';
 import { ComparisonCard } from '../components/ComparisonCard';
@@ -15,17 +17,20 @@ import { Colors, Spacing, BorderRadius, FontSizes } from '../constants/theme';
 import { useAnalysisData } from '../hooks/useAnalysisData';
 import { MEAL_TYPES } from '../utils/validation';
 
-interface DayDetailScreenProps {
-  day: Day;
-  onBackPress: () => void;
-  onComparisonPress?: () => void;
-}
+type RecordsStackParamList = {
+  PastRecords: undefined;
+  DayDetail: { day: Day };
+  WeeklyReport: { weekId: number };
+};
 
-export const DayDetailScreen: React.FC<DayDetailScreenProps> = ({
-  day,
-  onBackPress,
-  onComparisonPress,
-}) => {
+type DayDetailScreenRouteProp = RouteProp<RecordsStackParamList, 'DayDetail'>;
+type DayDetailScreenNavigationProp = StackNavigationProp<RecordsStackParamList, 'DayDetail'>;
+
+export const DayDetailScreen: React.FC = () => {
+  const navigation = useNavigation<DayDetailScreenNavigationProp>();
+  const route = useRoute<DayDetailScreenRouteProp>();
+  const { day } = route.params;
+
   const [currentView, setCurrentView] = useState<'analysis' | 'comparison'>('analysis');
   const [expandedMeals, setExpandedMeals] = useState<Set<string>>(new Set(['breakfast']));
 
@@ -40,18 +45,32 @@ export const DayDetailScreen: React.FC<DayDetailScreenProps> = ({
     hasComparisonData,
   } = useAnalysisData();
 
+  const [foodEntries, setFoodEntries] = useState<any[]>([]);
+  const [isLoadingFoodEntries, setIsLoadingFoodEntries] = useState(false);
+
   useEffect(() => {
     loadDayData();
   }, [day]);
 
   const loadDayData = async () => {
     try {
+      setIsLoadingFoodEntries(true);
+      
+      // Load food entries
+      const { DatabaseService } = await import('../services/DatabaseService');
+      const databaseService = DatabaseService.getInstance();
+      const entries = await databaseService.getFoodEntriesForDay(day.id);
+      setFoodEntries(entries);
+      
+      // Load analysis data
       await loadAnalysisForDay(day.id);
       if (currentView === 'comparison') {
         await loadComparisonForDay(day.id);
       }
     } catch (err) {
       console.error('Failed to load day data:', err);
+    } finally {
+      setIsLoadingFoodEntries(false);
     }
   };
 
@@ -99,36 +118,92 @@ export const DayDetailScreen: React.FC<DayDetailScreenProps> = ({
     })} • Day ${day.dayNumber}`;
   };
 
+  const renderFoodEntriesSection = () => {
+    if (isLoadingFoodEntries) {
+      return (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="small" color={Colors.primary} />
+          <Text style={styles.loadingText}>Loading food entries...</Text>
+        </View>
+      );
+    }
+
+    if (foodEntries.length === 0) {
+      return (
+        <View style={styles.noDataContainer}>
+          <Text style={styles.noDataText}>No food entries for this day</Text>
+          <Text style={styles.noDataSubtext}>
+            Food entries will appear here once you start tracking
+          </Text>
+        </View>
+      );
+    }
+
+    const entriesByMealType = MEAL_TYPES.reduce((acc, mealType) => {
+      acc[mealType] = foodEntries.filter(entry => entry.mealType === mealType);
+      return acc;
+    }, {} as Record<string, any[]>);
+
+    return (
+      <View style={styles.foodEntriesSection}>
+        <Text style={styles.sectionTitle}>Food Entries</Text>
+        {MEAL_TYPES.map(mealType => {
+          const entries = entriesByMealType[mealType];
+          if (entries.length === 0) return null;
+
+          return (
+            <View key={mealType} style={styles.mealSection}>
+              <Text style={styles.mealTitle}>{mealType.charAt(0).toUpperCase() + mealType.slice(1)}</Text>
+              {entries.map((entry, index) => (
+                <View key={`${entry.id}-${index}`} style={styles.foodEntryItem}>
+                  <Text style={styles.foodEntryName}>{entry.foodName}</Text>
+                  <Text style={styles.foodEntryPortion}>Portion: {entry.portion}</Text>
+                </View>
+              ))}
+            </View>
+          );
+        })}
+      </View>
+    );
+  };
+
   const renderAnalysisView = () => (
     <ScrollView 
       style={styles.scrollView}
       contentContainerStyle={styles.scrollContent}
       showsVerticalScrollIndicator={false}
     >
-      {hasAnalysisData() ? (
-        MEAL_TYPES.map(mealType => {
-          if (!hasMealTypeData(mealType)) {
-            return null;
-          }
+      {/* Food Entries Section */}
+      {renderFoodEntriesSection()}
 
-          return (
-            <MealAnalysisCard
-              key={mealType}
-              mealType={mealType}
-              analysisResults={getAnalysisForMealType(mealType)}
-              isExpanded={expandedMeals.has(mealType)}
-              onToggle={() => toggleMealExpansion(mealType)}
-            />
-          );
-        })
-      ) : (
+      {/* Analysis Results Section */}
+      {hasAnalysisData() ? (
+        <View style={styles.analysisSection}>
+          <Text style={styles.sectionTitle}>Analysis Results</Text>
+          {MEAL_TYPES.map(mealType => {
+            if (!hasMealTypeData(mealType)) {
+              return null;
+            }
+
+            return (
+              <MealAnalysisCard
+                key={mealType}
+                mealType={mealType}
+                analysisResults={getAnalysisForMealType(mealType)}
+                isExpanded={expandedMeals.has(mealType)}
+                onToggle={() => toggleMealExpansion(mealType)}
+              />
+            );
+          })}
+        </View>
+      ) : foodEntries.length > 0 ? (
         <View style={styles.noDataContainer}>
-          <Text style={styles.noDataText}>No analysis data for this day</Text>
+          <Text style={styles.noDataText}>No analysis data available</Text>
           <Text style={styles.noDataSubtext}>
             Food analysis will appear here once foods are analyzed
           </Text>
         </View>
-      )}
+      ) : null}
     </ScrollView>
   );
 
@@ -172,7 +247,7 @@ export const DayDetailScreen: React.FC<DayDetailScreenProps> = ({
       <View style={styles.content}>
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton} onPress={onBackPress}>
+          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
             <Text style={styles.backButtonText}>← Back</Text>
           </TouchableOpacity>
           <Text style={styles.title}>Day Details</Text>
@@ -349,5 +424,52 @@ const styles = StyleSheet.create({
     fontSize: FontSizes.small,
     color: Colors.white,
     textAlign: 'center',
+  },
+  sectionTitle: {
+    fontSize: FontSizes.large,
+    fontWeight: '600',
+    color: Colors.textPrimary,
+    marginBottom: Spacing.md,
+    marginTop: Spacing.sm,
+  },
+  foodEntriesSection: {
+    marginBottom: Spacing.lg,
+  },
+  analysisSection: {
+    marginTop: Spacing.md,
+  },
+  mealSection: {
+    backgroundColor: Colors.white,
+    borderRadius: BorderRadius.medium,
+    padding: Spacing.md,
+    marginBottom: Spacing.sm,
+    shadowColor: Colors.shadow,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  mealTitle: {
+    fontSize: FontSizes.medium,
+    fontWeight: '600',
+    color: Colors.primary,
+    marginBottom: Spacing.sm,
+    textTransform: 'capitalize',
+  },
+  foodEntryItem: {
+    backgroundColor: Colors.buttonSecondary,
+    borderRadius: BorderRadius.small,
+    padding: Spacing.sm,
+    marginBottom: Spacing.xs,
+  },
+  foodEntryName: {
+    fontSize: FontSizes.medium,
+    fontWeight: '500',
+    color: Colors.textPrimary,
+    marginBottom: 2,
+  },
+  foodEntryPortion: {
+    fontSize: FontSizes.small,
+    color: Colors.textSecondary,
   },
 });

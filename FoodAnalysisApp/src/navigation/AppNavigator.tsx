@@ -9,8 +9,8 @@ import { ConnectedFoodInputScreen } from '../screens/ConnectedFoodInputScreen';
 import { ConnectedAnalysisScreen } from '../screens/ConnectedAnalysisScreen';
 import { ConnectedComparisonScreen } from '../screens/ConnectedComparisonScreen';
 import { PastRecordsScreen } from '../screens/PastRecordsScreen';
-// import { PastRecordsScreen } from '../screens/PastRecordsScreen';
-// import { WeeklyReportScreen } from '../screens/WeeklyReportScreen';
+import { DayDetailScreen } from '../screens/DayDetailScreen';
+import { WeeklyReportScreen } from '../screens/WeeklyReportScreen';
 
 // Constants
 import { Colors, FontSizes } from '../constants/theme';
@@ -29,6 +29,7 @@ export type InputStackParamList = {
 
 export type RecordsStackParamList = {
   PastRecords: undefined;
+  DayDetail: { day: any };
   WeeklyReport: { weekId: number };
 };
 
@@ -138,6 +139,14 @@ const RecordsStackNavigator: React.FC = () => {
       <RecordsStack.Screen
         name="PastRecords"
         component={PastRecordsScreen}
+      />
+      <RecordsStack.Screen
+        name="DayDetail"
+        component={DayDetailScreen}
+      />
+      <RecordsStack.Screen
+        name="WeeklyReport"
+        component={WeeklyReportScreen}
       />
     </RecordsStack.Navigator>
   );

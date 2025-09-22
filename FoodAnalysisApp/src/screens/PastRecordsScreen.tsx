@@ -8,47 +8,39 @@ import {
   Alert,
   ScrollView,
   TouchableOpacity,
+  FlatList,
 } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
-import { Day, Week, AnalysisResult } from '../models/types';
-import { DaySelector } from '../components/DaySelector';
-import { MealAnalysisCard } from '../components/MealAnalysisCard';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { StackNavigationProp } from '@react-navigation/stack';
+import { Day, Week, FoodEntry } from '../models/types';
 import { Colors, Spacing, FontSizes, BorderRadius } from '../constants/theme';
 import { DatabaseService } from '../services/DatabaseService';
-import { useAnalysisData } from '../hooks/useAnalysisData';
-import { MEAL_TYPES } from '../utils/validation';
 
-interface PastRecordsScreenProps {
-  onWeeklyReportPress?: (weekId: number) => void;
+type RecordsStackParamList = {
+  PastRecords: undefined;
+  DayDetail: { day: Day };
+  WeeklyReport: { weekId: number };
+};
+
+type PastRecordsScreenNavigationProp = StackNavigationProp<RecordsStackParamList, 'PastRecords'>;
+
+interface DayWithData extends Day {
+  foodCount: number;
+  hasAnalysis: boolean;
 }
 
-export const PastRecordsScreen: React.FC<PastRecordsScreenProps> = ({
-  onWeeklyReportPress,
-}) => {
-  const [currentWeek, setCurrentWeek] = useState<Week | null>(null);
-  const [days, setDays] = useState<Day[]>([]);
-  const [selectedDay, setSelectedDay] = useState<Day | null>(null);
+export const PastRecordsScreen: React.FC = () => {
+  const navigation = useNavigation<PastRecordsScreenNavigationProp>();
+  const [weeks, setWeeks] = useState<Week[]>([]);
+  const [daysWithData, setDaysWithData] = useState<DayWithData[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [expandedMeals, setExpandedMeals] = useState<Set<string>>(new Set(['breakfast']));
-
-  const {
-    analysisResults,
-    loadAnalysisForDay,
-    error: analysisError,
-  } = useAnalysisData();
 
   const databaseService = DatabaseService.getInstance();
 
   useEffect(() => {
     initializeData();
   }, []);
-
-  useEffect(() => {
-    if (selectedDay) {
-      loadDayAnalysis(selectedDay.id);
-    }
-  }, [selectedDay]);
 
   // Refresh data when screen comes into focus
   useFocusEffect(
@@ -66,24 +58,33 @@ export const PastRecordsScreen: React.FC<PastRecordsScreenProps> = ({
       // Initialize database
       await databaseService.initializeDatabase();
 
-      // Get current week and days
-      const week = await databaseService.getCurrentWeek();
-      const weekDays = await databaseService.getDaysForWeek(week.id);
+      // Get all weeks
+      const allWeeks = await databaseService.getAllWeeks();
+      setWeeks(allWeeks);
 
-      setCurrentWeek(week);
-      setDays(weekDays);
-
-      // Select the most recent day with data, or current day
-      if (weekDays.length > 0) {
-        const currentDay = weekDays.find(day => {
-          const today = new Date().toISOString().split('T')[0];
-          return day.date === today;
-        }) || weekDays[weekDays.length - 1];
-
-        setSelectedDay(currentDay);
-        // Force reload analysis for the selected day
-        await loadDayAnalysis(currentDay.id);
+      // Get all days with their data counts
+      const allDaysWithData: DayWithData[] = [];
+      
+      for (const week of allWeeks) {
+        const weekDays = await databaseService.getDaysForWeek(week.id);
+        
+        for (const day of weekDays) {
+          // Get food entries count for this day
+          const foodEntries = await databaseService.getFoodEntriesForDay(day.id);
+          const analysisResults = await databaseService.getAnalysisForDay(day.id);
+          
+          allDaysWithData.push({
+            ...day,
+            foodCount: foodEntries.length,
+            hasAnalysis: analysisResults.length > 0,
+          });
+        }
       }
+
+      // Sort days by date (most recent first)
+      allDaysWithData.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      setDaysWithData(allDaysWithData);
+
     } catch (err) {
       console.error('Failed to initialize past records:', err);
       setError(`Failed to load records: ${err}`);
@@ -92,71 +93,121 @@ export const PastRecordsScreen: React.FC<PastRecordsScreenProps> = ({
     }
   };
 
-  const loadDayAnalysis = async (dayId: number) => {
-    try {
-      console.log('Loading analysis for day ID:', dayId);
-      await loadAnalysisForDay(dayId);
-      console.log('Analysis loaded successfully for day:', dayId);
-    } catch (err) {
-      console.error('Failed to load day analysis:', err);
-      // Don't show error for missing analysis data
-    }
+  const handleDayPress = (day: DayWithData) => {
+    navigation.navigate('DayDetail', { day });
   };
 
-  const handleDaySelect = (day: Day) => {
-    setSelectedDay(day);
+  const handleWeeklyReportPress = (weekId: number) => {
+    navigation.navigate('WeeklyReport', { weekId });
   };
 
-  const handleWeeklyReportPress = () => {
-    if (currentWeek && onWeeklyReportPress) {
-      onWeeklyReportPress(currentWeek.id);
+  const formatDate = (dateString: string): string => {
+    const date = new Date(dateString);
+    const today = new Date().toISOString().split('T')[0];
+    const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    
+    if (dateString === today) {
+      return 'Today';
+    } else if (dateString === yesterday) {
+      return 'Yesterday';
     } else {
-      Alert.alert(
-        'Weekly Report',
-        'Weekly report feature will be available when you complete 7 days of food tracking.',
-        [{ text: 'OK' }]
-      );
+      return date.toLocaleDateString('en-US', { 
+        weekday: 'long',
+        month: 'long', 
+        day: 'numeric' 
+      });
     }
   };
 
-  const toggleMealExpansion = (mealType: string) => {
-    const newExpanded = new Set(expandedMeals);
-    if (newExpanded.has(mealType)) {
-      newExpanded.delete(mealType);
+  const getDayStatusText = (day: DayWithData): string => {
+    if (day.foodCount === 0) {
+      return 'No food entries';
+    } else if (!day.hasAnalysis) {
+      return `${day.foodCount} food${day.foodCount !== 1 ? 's' : ''} • Not analyzed`;
     } else {
-      newExpanded.add(mealType);
+      return `${day.foodCount} food${day.foodCount !== 1 ? 's' : ''} • Analyzed`;
     }
-    setExpandedMeals(newExpanded);
   };
 
-  const getAnalysisForMealType = (mealType: string): AnalysisResult[] => {
-    return analysisResults.filter(result => {
-      // Check if any chemical substances match the meal type
-      return result.chemicalSubstances.some(substance => 
-        substance.mealType === mealType
-      );
+  const getDayStatusColor = (day: DayWithData): string => {
+    if (day.foodCount === 0) {
+      return Colors.textSecondary;
+    } else if (!day.hasAnalysis) {
+      return Colors.warning;
+    } else {
+      return Colors.success;
+    }
+  };
+
+  const renderDayItem = ({ item: day }: { item: DayWithData }) => (
+    <TouchableOpacity
+      style={styles.dayItem}
+      onPress={() => handleDayPress(day)}
+      activeOpacity={0.7}
+    >
+      <View style={styles.dayItemContent}>
+        <View style={styles.dayItemHeader}>
+          <Text style={styles.dayItemTitle}>
+            Day {day.dayNumber}
+          </Text>
+          <Text style={styles.dayItemDate}>
+            {formatDate(day.date)}
+          </Text>
+        </View>
+        
+        <Text style={[styles.dayItemStatus, { color: getDayStatusColor(day) }]}>
+          {getDayStatusText(day)}
+        </Text>
+        
+        <View style={styles.dayItemFooter}>
+          <Text style={styles.dayItemWeek}>
+            Week {Math.ceil(day.dayNumber / 7)}
+          </Text>
+          <Text style={styles.dayItemArrow}>→</Text>
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+
+  const renderWeeklyReportButton = () => {
+    const completedWeeks = weeks.filter(week => {
+      const weekDays = daysWithData.filter(day => day.weekId === week.id);
+      return weekDays.length >= 7;
     });
-  };
 
-  const hasMealTypeData = (mealType: string): boolean => {
-    return getAnalysisForMealType(mealType).length > 0;
-  };
-
-  const getSelectedDayInfo = (): string => {
-    if (!selectedDay) return '';
-    
-    const date = new Date(selectedDay.date);
-    const isToday = selectedDay.date === new Date().toISOString().split('T')[0];
-    
-    if (isToday) {
-      return `Today • Day ${selectedDay.dayNumber}`;
+    if (completedWeeks.length === 0) {
+      return null;
     }
-    
-    return `${date.toLocaleDateString('en-US', { 
-      weekday: 'long',
-      month: 'long', 
-      day: 'numeric' 
-    })} • Day ${selectedDay.dayNumber}`;
+
+    return (
+      <View style={styles.weeklyReportSection}>
+        <Text style={styles.sectionTitle}>Weekly Reports</Text>
+        {completedWeeks.map(week => (
+          <TouchableOpacity
+            key={week.id}
+            style={styles.weeklyReportButton}
+            onPress={() => handleWeeklyReportPress(week.id)}
+            activeOpacity={0.7}
+          >
+            <View style={styles.weeklyReportContent}>
+              <Text style={styles.weeklyReportTitle}>
+                Week {week.weekNumber} Report
+              </Text>
+              <Text style={styles.weeklyReportDate}>
+                {new Date(week.startDate).toLocaleDateString('en-US', { 
+                  month: 'short', 
+                  day: 'numeric' 
+                })} - {week.endDate ? new Date(week.endDate).toLocaleDateString('en-US', { 
+                  month: 'short', 
+                  day: 'numeric' 
+                }) : 'Present'}
+              </Text>
+              <Text style={styles.weeklyReportArrow}>→</Text>
+            </View>
+          </TouchableOpacity>
+        ))}
+      </View>
+    );
   };
 
   if (isLoading) {
@@ -175,6 +226,12 @@ export const PastRecordsScreen: React.FC<PastRecordsScreenProps> = ({
       <SafeAreaView style={styles.container}>
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>{error}</Text>
+          <TouchableOpacity 
+            style={styles.retryButton}
+            onPress={initializeData}
+          >
+            <Text style={styles.retryButtonText}>Retry</Text>
+          </TouchableOpacity>
         </View>
       </SafeAreaView>
     );
@@ -197,69 +254,24 @@ export const PastRecordsScreen: React.FC<PastRecordsScreenProps> = ({
           </TouchableOpacity>
         </View>
 
-        {/* Day Selector */}
-        <DaySelector
-          currentWeek={currentWeek}
-          days={days}
-          selectedDayId={selectedDay?.id || null}
-          onDaySelect={handleDaySelect}
-          onWeeklyReportPress={handleWeeklyReportPress}
-          showWeeklyReport={days.length >= 7}
-        />
-
-        {/* Selected Day Info */}
-        {selectedDay && (
-          <View style={styles.dayInfoContainer}>
-            <Text style={styles.dayInfoText}>{getSelectedDayInfo()}</Text>
+        {/* Content */}
+        {daysWithData.length > 0 ? (
+          <FlatList
+            data={daysWithData}
+            renderItem={renderDayItem}
+            keyExtractor={(item) => item.id.toString()}
+            contentContainerStyle={styles.listContent}
+            showsVerticalScrollIndicator={false}
+            ListHeaderComponent={renderWeeklyReportButton}
+          />
+        ) : (
+          <View style={styles.noDataContainer}>
+            <Text style={styles.noDataText}>No days recorded yet</Text>
+            <Text style={styles.noDataSubtext}>
+              Start tracking your food to see your history here
+            </Text>
           </View>
         )}
-
-        {/* Analysis Results */}
-        <ScrollView 
-          style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
-          {selectedDay && analysisResults.length > 0 ? (
-            MEAL_TYPES.map(mealType => {
-              if (!hasMealTypeData(mealType)) {
-                return null;
-              }
-
-              return (
-                <MealAnalysisCard
-                  key={mealType}
-                  mealType={mealType}
-                  analysisResults={getAnalysisForMealType(mealType)}
-                  isExpanded={expandedMeals.has(mealType)}
-                  onToggle={() => toggleMealExpansion(mealType)}
-                />
-              );
-            })
-          ) : selectedDay ? (
-            <View style={styles.noDataContainer}>
-              <Text style={styles.noDataText}>No food records for this day</Text>
-              <Text style={styles.noDataSubtext}>
-                Food entries and analysis will appear here once you start tracking
-              </Text>
-            </View>
-          ) : (
-            <View style={styles.noDataContainer}>
-              <Text style={styles.noDataText}>No days recorded yet</Text>
-              <Text style={styles.noDataSubtext}>
-                Start tracking your food to see your history here
-              </Text>
-            </View>
-          )}
-
-          {analysisError && (
-            <View style={styles.errorContainer}>
-              <Text style={styles.errorText}>
-                Failed to load analysis data for this day
-              </Text>
-            </View>
-          )}
-        </ScrollView>
       </View>
     </SafeAreaView>
   );
@@ -298,26 +310,101 @@ const styles = StyleSheet.create({
     fontSize: 20,
     color: Colors.white,
   },
-  dayInfoContainer: {
-    backgroundColor: Colors.white,
+  listContent: {
     paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    paddingBottom: Spacing.lg,
   },
-  dayInfoText: {
-    fontSize: FontSizes.medium,
+  sectionTitle: {
+    fontSize: FontSizes.large,
     fontWeight: '600',
     color: Colors.textPrimary,
-    textAlign: 'center',
+    marginTop: Spacing.lg,
+    marginBottom: Spacing.md,
+    paddingHorizontal: Spacing.xs,
   },
-  scrollView: {
-    flex: 1,
+  weeklyReportSection: {
     backgroundColor: Colors.white,
+    marginBottom: Spacing.md,
   },
-  scrollContent: {
+  weeklyReportButton: {
+    backgroundColor: Colors.primary,
+    borderRadius: BorderRadius.medium,
+    marginBottom: Spacing.sm,
+    shadowColor: Colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  weeklyReportContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.md,
+  },
+  weeklyReportTitle: {
+    flex: 1,
+    fontSize: FontSizes.medium,
+    fontWeight: '600',
+    color: Colors.white,
+  },
+  weeklyReportDate: {
+    fontSize: FontSizes.small,
+    color: Colors.white,
+    opacity: 0.8,
+    marginRight: Spacing.sm,
+  },
+  weeklyReportArrow: {
+    fontSize: FontSizes.medium,
+    color: Colors.white,
+    fontWeight: 'bold',
+  },
+  dayItem: {
+    backgroundColor: Colors.white,
+    borderRadius: BorderRadius.medium,
+    marginBottom: Spacing.sm,
+    shadowColor: Colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  dayItemContent: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.md,
+  },
+  dayItemHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: Spacing.xs,
+  },
+  dayItemTitle: {
+    fontSize: FontSizes.large,
+    fontWeight: '600',
+    color: Colors.textPrimary,
+  },
+  dayItemDate: {
+    fontSize: FontSizes.medium,
+    color: Colors.textSecondary,
+  },
+  dayItemStatus: {
+    fontSize: FontSizes.small,
+    marginBottom: Spacing.sm,
+  },
+  dayItemFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  dayItemWeek: {
+    fontSize: FontSizes.small,
+    color: Colors.textSecondary,
+  },
+  dayItemArrow: {
+    fontSize: FontSizes.medium,
+    color: Colors.primary,
+    fontWeight: 'bold',
   },
   loadingContainer: {
     flex: 1,
@@ -339,15 +426,29 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: FontSizes.medium,
-    color: Colors.error,
+    color: Colors.white,
     textAlign: 'center',
     marginBottom: Spacing.lg,
+  },
+  retryButton: {
+    backgroundColor: Colors.white,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.medium,
+  },
+  retryButtonText: {
+    fontSize: FontSizes.medium,
+    color: Colors.primary,
+    fontWeight: '600',
   },
   noDataContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     paddingVertical: Spacing.lg,
+    backgroundColor: Colors.white,
+    margin: Spacing.md,
+    borderRadius: BorderRadius.medium,
   },
   noDataText: {
     fontSize: FontSizes.large,

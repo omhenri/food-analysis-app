@@ -84,10 +84,21 @@ graph TB
 - **Button Text**: 16px medium weight
 
 ### Component Styling Guidelines
-- **Border Radius**: 8px for cards, 6px for buttons and inputs
+- **Border Radius**: 8px for cards, 6px for buttons and inputs, 10px for progress bars
 - **Spacing**: 8px, 16px, 24px, 32px grid system
 - **Shadows**: Subtle elevation for cards and modals
 - **Button Height**: 48px for primary actions, 40px for secondary
+
+### Enhanced Comparison Visualization Guidelines
+- **Progress Bar Heights**: 4px for main consumption bars, 2px for reference lines
+- **Typography**: 12px Roboto for substance names, 22px Roboto right-aligned for values, 8px Roboto light for units
+- **Reference Indicators**: 2px circular dots positioned at reference values
+- **Color Coding**: 
+  - Primary consumption: `#75F5DB` (theme color)
+  - Secondary layers: `#67C7C1`, `#509A9C` (gradient variations)
+  - Reference lines: `#4A78CF` (blue for recommended), `#EA92BD` (pink for limits)
+- **Layered Visualization**: Multiple overlapping bars with different heights and colors
+- **Interactive Elements**: Touch targets for detailed breakdowns and educational content
 
 ## Screen Layouts and UI Components
 
@@ -135,13 +146,30 @@ graph TB
   - Expand/collapse arrows on the right
 - **Navigation**: Analyze/Comparison toggle buttons at bottom
 
+### Enhanced Comparison Screen Layout
+- **Summary Section**: Overall nutrition score and quick overview
+  - Nutrition score visualization with color-coded status
+  - Quick indicators for deficiencies and excesses
+  - Daily/weekly progress indicators
+- **Categorized Sections**: Collapsible nutrient categories
+  - Macronutrients (Calories, Fat, Protein, Carbohydrates)
+  - Micronutrients (Vitamins, Minerals)
+  - Harmful Substances (with safety thresholds)
+- **Enhanced Comparison Cards**: Multi-layered progress visualization
+  - Substance name (12px Roboto, black)
+  - Right-aligned consumption value (22px Roboto)
+  - Unit indicator (8px Roboto light, e.g., "| cal", "| g", "| mg")
+  - Layered horizontal progress bars (4px main, 2px reference)
+  - Color-coded reference points with circular indicators (2px)
+  - Reference values displayed as small numbers (8px Roboto)
+
 ### Past Records Screen Layout
 - **Day Selector**: Horizontal scrollable day navigation
   - Day1, Day2, Day3... Day7, Week options
   - Current day highlighted in #75F5DB
   - Inactive days in #595959
-- **Content Area**: Same meal category layout as analysis screen
-- **Weekly Report**: Available when Day 7 is reached
+- **Content Area**: Same enhanced comparison layout as current day
+- **Weekly Report**: Available when Day 7 is reached with enhanced visualization
 
 ### Tab Bar Layout
 - **Container**: 440px width, 75px height, white background with top shadow
@@ -151,15 +179,45 @@ graph TB
 - **Active State**: Icons use theme color #75F5DB
 - **Inactive State**: Icons use #595959 gray
 
+### Enhanced Comparison Card Layout
+- **Container**: White background with subtle shadow, 8px border radius
+- **Header Section**: 
+  - Substance name: 12px Roboto, black, left-aligned
+  - Consumption value: 22px Roboto, black, right-aligned
+  - Unit indicator: 8px Roboto light, positioned after value (e.g., "| cal", "| g", "| mg")
+- **Progress Bar Section**:
+  - Main consumption bars: 4px height, theme color (#75F5DB), 10px border radius
+  - Secondary layers: 4px height, gradient colors (#67C7C1, #509A9C), overlapping
+  - Reference lines: 2px height, blue (#4A78CF) and pink (#EA92BD), positioned above/below main bars
+  - Circular indicators: 2px diameter, positioned at reference points
+  - Reference values: 8px Roboto, colored text matching reference lines
+- **Interactive States**:
+  - Tap: Subtle scale animation (0.98x) with haptic feedback
+  - Long press: Tooltip appearance with educational content
+  - Loading: Shimmer effect on progress bars
+
+### Category Section Layout
+- **Header**: Category name with expand/collapse icon, 16px Roboto medium
+- **Substance Count**: Small badge showing number of substances in category
+- **Collapsible Content**: Smooth expand/collapse animation (300ms)
+- **Spacing**: 16px between comparison cards, 24px between categories
+
+### Nutrition Score Widget
+- **Circular Progress**: Large circular indicator showing overall score (0-100)
+- **Score Breakdown**: Horizontal mini-bars for macronutrients, micronutrients, harmful substances
+- **Status Indicators**: Color-coded dots for quick deficiency/excess overview
+- **Recommendations**: Scrollable list of actionable suggestions
+
 ### Button States and Interactions
 - **Primary Buttons**: #75F5DB background, white text, 45px border radius
 - **Secondary Buttons**: White background, #595959 text, subtle shadow
 - **Active States**: Theme color highlights and icon color changes
 - **Hover/Press**: Subtle opacity changes for feedback
+- **Enhanced Interactions**: Haptic feedback for comparison card taps and long presses
 
 ## Components and Interfaces
 
-### Data Models
+### Enhanced Data Models
 
 #### Week Model
 ```typescript
@@ -180,6 +238,34 @@ interface Day {
   dayNumber: number; // 1-7 (Monday-Sunday)
   date: string;
   createdAt: string;
+}
+```
+
+#### Substance Category Model
+```typescript
+interface SubstanceCategory {
+  id: string;
+  name: string;
+  type: 'macronutrient' | 'micronutrient' | 'harmful' | 'calorie';
+  displayOrder: number;
+  defaultUnit: string;
+  description: string;
+}
+```
+
+#### Reference Value Model
+```typescript
+interface ReferenceValue {
+  id: string;
+  substanceName: string;
+  ageGroup: string;
+  gender?: 'male' | 'female' | 'all';
+  type: 'recommended' | 'minimum' | 'maximum' | 'upper_limit';
+  value: number;
+  unit: string;
+  source: string;
+  color: string;
+  label: string;
 }
 ```
 
@@ -217,14 +303,73 @@ interface ChemicalSubstance {
 }
 ```
 
-#### 3. Comparison Component
+#### 3. Enhanced Comparison Component
 ```typescript
-interface ComparisonData {
+interface EnhancedComparisonCardProps {
+  data: EnhancedComparisonData;
+  onTap: (substance: string) => void;
+  onLongPress: (substance: string) => void;
+  animated?: boolean;
+}
+
+interface EnhancedComparisonData {
   substance: string;
+  category: 'macronutrient' | 'micronutrient' | 'harmful' | 'calorie';
   consumed: number;
-  recommended: number;
+  unit: string;
+  referenceValues: ReferenceValue[];
+  status: 'deficient' | 'optimal' | 'acceptable' | 'excess';
+  layers: ConsumptionLayer[];
+  educationalContent: EducationalContent;
+  visualConfig: VisualizationConfig;
+}
+
+interface ReferenceValue {
+  type: 'recommended' | 'minimum' | 'maximum' | 'upper_limit';
+  value: number;
+  color: string;
+  label: string;
+  position: number; // percentage position on the bar
+}
+
+interface ConsumptionLayer {
+  value: number;
   percentage: number;
-  status: 'under' | 'optimal' | 'over';
+  color: string;
+  height: number; // 4px for main, 2px for reference
+  width: number; // calculated width based on percentage
+  borderRadius: number; // 10px for rounded ends
+}
+
+interface VisualizationConfig {
+  maxBarWidth: number; // maximum width in pixels
+  barSpacing: number; // vertical spacing between bars
+  indicatorSize: number; // 2px for circular indicators
+  animationDuration: number; // milliseconds
+}
+
+interface EducationalContent {
+  healthImpact: string;
+  recommendedSources?: string[];
+  reductionTips?: string[];
+  safetyInformation?: string;
+  optimalRange?: string;
+}
+```
+
+#### 4. Category Section Component
+```typescript
+interface CategorySectionProps {
+  category: SubstanceCategory;
+  substances: EnhancedComparisonData[];
+  isExpanded: boolean;
+  onToggle: (categoryId: string) => void;
+  onSubstanceTap: (substance: string) => void;
+}
+
+interface NutritionScoreProps {
+  score: NutritionScore;
+  onDetailsTap: () => void;
 }
 ```
 
@@ -295,6 +440,57 @@ CREATE TABLE analysis_results (
 );
 ```
 
+#### Substance Categories Table
+```sql
+CREATE TABLE substance_categories (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  type TEXT NOT NULL CHECK (type IN ('macronutrient', 'micronutrient', 'harmful', 'calorie')),
+  display_order INTEGER NOT NULL,
+  default_unit TEXT NOT NULL,
+  description TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+#### Reference Values Table
+```sql
+CREATE TABLE reference_values (
+  id TEXT PRIMARY KEY,
+  substance_name TEXT NOT NULL,
+  category_id TEXT NOT NULL,
+  age_group TEXT NOT NULL,
+  gender TEXT CHECK (gender IN ('male', 'female', 'all')),
+  type TEXT NOT NULL CHECK (type IN ('recommended', 'minimum', 'maximum', 'upper_limit')),
+  value REAL NOT NULL,
+  unit TEXT NOT NULL,
+  source TEXT,
+  color TEXT NOT NULL,
+  label TEXT NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (category_id) REFERENCES substance_categories (id)
+);
+```
+
+#### Enhanced Comparison Results Table
+```sql
+CREATE TABLE enhanced_comparison_results (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  day_id INTEGER NOT NULL,
+  substance_name TEXT NOT NULL,
+  category_id TEXT NOT NULL,
+  consumed_amount REAL NOT NULL,
+  unit TEXT NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('deficient', 'optimal', 'acceptable', 'excess')),
+  nutrition_score REAL,
+  layers_data TEXT NOT NULL, -- JSON array of ConsumptionLayer
+  reference_data TEXT NOT NULL, -- JSON array of ReferenceValue
+  calculated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (day_id) REFERENCES days (id),
+  FOREIGN KEY (category_id) REFERENCES substance_categories (id)
+);
+```
+
 ### Data Access Layer
 
 #### Database Service
@@ -322,6 +518,48 @@ class AIAnalysisService {
   async getRecommendedIntake(age: number): Promise<RecommendedIntake>
   private formatFoodForAnalysis(food: FoodItem): string
   private parseAnalysisResponse(response: string): AnalysisResult
+}
+```
+
+#### Enhanced Analysis Data Service
+```typescript
+class EnhancedAnalysisDataService {
+  async calculateEnhancedComparison(analysisResults: AnalysisResult[], age: number): Promise<EnhancedComparisonData[]>
+  async categorizeSubstances(substances: ChemicalSubstance[]): Promise<CategorizedSubstances>
+  async calculateReferenceValues(substance: string, category: string, age: number): Promise<ReferenceValue[]>
+  async generateConsumptionLayers(consumed: number, references: ReferenceValue[]): Promise<ConsumptionLayer[]>
+  async calculateNutritionScore(comparisonData: EnhancedComparisonData[]): Promise<NutritionScore>
+  private convertUnits(value: number, fromUnit: string, toUnit: string): number
+  private determineOptimalRanges(substance: string, category: string): OptimalRange
+  private calculateWeeklyTotals(dailyData: EnhancedComparisonData[]): Promise<EnhancedComparisonData[]>
+}
+
+interface EnhancedComparisonData {
+  substance: string;
+  category: 'macronutrient' | 'micronutrient' | 'harmful' | 'calorie';
+  consumed: number;
+  unit: string;
+  referenceValues: ReferenceValue[];
+  status: 'deficient' | 'optimal' | 'acceptable' | 'excess';
+  layers: ConsumptionLayer[];
+  educationalContent: EducationalContent;
+}
+
+interface EducationalContent {
+  healthImpact: string;
+  recommendedSources?: string[];
+  reductionTips?: string[];
+  safetyInformation?: string;
+}
+
+interface NutritionScore {
+  overall: number; // 0-100
+  breakdown: {
+    macronutrients: number;
+    micronutrients: number;
+    harmfulSubstances: number;
+  };
+  recommendations: string[];
 }
 ```
 

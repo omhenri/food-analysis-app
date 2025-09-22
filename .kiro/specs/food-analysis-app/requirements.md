@@ -80,6 +80,54 @@ The Food Analysis Mobile App is a cross-platform application that allows users t
 
 ### Requirement 7
 
+**User Story:** As a user, I want to see sophisticated nutritional visualizations with layered progress bars and multiple reference values, so that I can better understand my consumption patterns and health status.
+
+#### Acceptance Criteria
+
+1. WHEN viewing comparison data THEN the system SHALL display multi-layered horizontal progress bars with different heights (4px main, 2px reference)
+2. WHEN displaying substance information THEN the system SHALL show substance name (12px), consumption value (22px right-aligned), and unit indicator (8px)
+3. WHEN showing reference values THEN the system SHALL display color-coded reference points with small circular indicators (2px)
+4. WHEN displaying progress bars THEN the system SHALL use theme color (#75F5DB) for primary consumption and gradient variations (#67C7C1, #509A9C) for secondary layers
+5. WHEN showing reference lines THEN the system SHALL use blue (#4A78CF) for recommended values and pink (#EA92BD) for limit values
+
+### Requirement 8
+
+**User Story:** As a user, I want substances categorized by type with appropriate reference ranges, so that I can understand different nutritional requirements and safety thresholds.
+
+#### Acceptance Criteria
+
+1. WHEN displaying calories THEN the system SHALL show daily intake vs recommended with activity level adjustments
+2. WHEN showing macronutrients (Fat, Protein, Carbs) THEN the system SHALL display optimal ranges with color-coded zones
+3. WHEN displaying micronutrients (Vitamins, Minerals) THEN the system SHALL show RDA and upper limits with appropriate indicators
+4. WHEN showing harmful substances THEN the system SHALL display safety thresholds with warning indicators
+5. WHEN substances are grouped THEN the system SHALL organize by category (Macronutrients, Vitamins, Minerals, etc.) in collapsible sections
+
+### Requirement 9
+
+**User Story:** As a user, I want interactive comparison features with educational content, so that I can learn about nutrition and make informed dietary decisions.
+
+#### Acceptance Criteria
+
+1. WHEN tapping on a substance THEN the system SHALL show detailed breakdown with health impact explanations
+2. WHEN long pressing on substances THEN the system SHALL display substance information tooltips
+3. WHEN deficiencies are detected THEN the system SHALL suggest recommended food sources
+4. WHEN excess consumption is shown THEN the system SHALL provide tips for reducing intake
+5. WHEN viewing comparisons THEN the system SHALL include accessibility labels and screen reader support
+
+### Requirement 10
+
+**User Story:** As a user, I want enhanced weekly reports with the same sophisticated visualization, so that I can track my nutritional patterns over time.
+
+#### Acceptance Criteria
+
+1. WHEN viewing weekly reports THEN the system SHALL show weekly totals vs weekly recommended values using the same layered visualization
+2. WHEN displaying weekly data THEN the system SHALL add daily breakdown overlay on weekly bars
+3. WHEN comparing weeks THEN the system SHALL implement week-over-week comparison with trend indicators
+4. WHEN showing weekly consistency THEN the system SHALL display weekly goal tracking indicators
+5. WHEN calculating weekly values THEN the system SHALL use weekly recommended totals (daily × 7) with appropriate ranges
+
+### Requirement 11
+
 **User Story:** As a user, I want the app to work on both iOS and Android, so that I can use it regardless of my device platform.
 
 #### Acceptance Criteria
