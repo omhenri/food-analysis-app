@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,11 +7,13 @@ import {
   ActivityIndicator,
   Alert,
   ScrollView,
+  TouchableOpacity,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { Day, Week, AnalysisResult } from '../models/types';
 import { DaySelector } from '../components/DaySelector';
 import { MealAnalysisCard } from '../components/MealAnalysisCard';
-import { Colors, Spacing, FontSizes } from '../constants/theme';
+import { Colors, Spacing, FontSizes, BorderRadius } from '../constants/theme';
 import { DatabaseService } from '../services/DatabaseService';
 import { useAnalysisData } from '../hooks/useAnalysisData';
 import { MEAL_TYPES } from '../utils/validation';
@@ -48,6 +50,14 @@ export const PastRecordsScreen: React.FC<PastRecordsScreenProps> = ({
     }
   }, [selectedDay]);
 
+  // Refresh data when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      console.log('PastRecordsScreen focused - refreshing data');
+      initializeData();
+    }, [])
+  );
+
   const initializeData = async () => {
     try {
       setIsLoading(true);
@@ -71,6 +81,8 @@ export const PastRecordsScreen: React.FC<PastRecordsScreenProps> = ({
         }) || weekDays[weekDays.length - 1];
 
         setSelectedDay(currentDay);
+        // Force reload analysis for the selected day
+        await loadDayAnalysis(currentDay.id);
       }
     } catch (err) {
       console.error('Failed to initialize past records:', err);
@@ -82,7 +94,9 @@ export const PastRecordsScreen: React.FC<PastRecordsScreenProps> = ({
 
   const loadDayAnalysis = async (dayId: number) => {
     try {
+      console.log('Loading analysis for day ID:', dayId);
       await loadAnalysisForDay(dayId);
+      console.log('Analysis loaded successfully for day:', dayId);
     } catch (err) {
       console.error('Failed to load day analysis:', err);
       // Don't show error for missing analysis data
@@ -172,6 +186,15 @@ export const PastRecordsScreen: React.FC<PastRecordsScreenProps> = ({
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.title}>Past Records</Text>
+          <TouchableOpacity 
+            style={styles.refreshButton}
+            onPress={() => {
+              console.log('Manual refresh triggered');
+              initializeData();
+            }}
+          >
+            <Text style={styles.refreshButtonText}>🔄</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Day Selector */}
@@ -251,6 +274,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.md,
     backgroundColor: Colors.background,
@@ -261,6 +287,16 @@ const styles = StyleSheet.create({
     color: Colors.white,
     textAlign: 'center',
     textTransform: 'capitalize',
+    flex: 1,
+  },
+  refreshButton: {
+    padding: Spacing.xs,
+    borderRadius: BorderRadius.medium,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  refreshButtonText: {
+    fontSize: 20,
+    color: Colors.white,
   },
   dayInfoContainer: {
     backgroundColor: Colors.white,

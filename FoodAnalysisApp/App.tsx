@@ -13,6 +13,11 @@ function App(): React.JSX.Element {
         // Configure analysis service (using mock for development)
         const analysisService = AnalysisServiceManager.getInstance();
         analysisService.enableMockService();
+        
+        // Initialize database
+        const { DatabaseService } = await import('./src/services/DatabaseService');
+        const databaseService = DatabaseService.getInstance();
+        await databaseService.initializeDatabase();
 
         console.log('App initialized successfully');
       } catch (error) {

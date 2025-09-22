@@ -97,11 +97,15 @@ export const useAnalysisData = (): UseAnalysisDataReturn => {
   const loadAnalysisForDay = useCallback(async (dayId: number): Promise<void> => {
     try {
       setError(null);
+      console.log(`Loading analysis for day ${dayId}...`);
       
       const results = await analysisDataService.getAnalysisForDay(dayId);
       setAnalysisResults(results);
       
       console.log(`Loaded ${results.length} analysis results for day ${dayId}`);
+      if (results.length > 0) {
+        console.log('Sample result:', results[0]);
+      }
     } catch (err) {
       const errorMessage = `Failed to load analysis for day ${dayId}: ${err}`;
       setError(errorMessage);

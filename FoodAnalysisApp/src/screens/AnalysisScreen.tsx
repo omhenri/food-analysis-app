@@ -12,7 +12,7 @@ import {
 import { AnalysisResult, MealType, FoodItem } from '../models/types';
 import { MealAnalysisCard } from '../components/MealAnalysisCard';
 import { Colors, Spacing, BorderRadius, FontSizes } from '../constants/theme';
-import { AnalysisServiceManager } from '../services/AnalysisServiceManager';
+import { AnalysisDataService } from '../services/AnalysisDataService';
 import { MEAL_TYPES } from '../utils/validation';
 
 interface AnalysisScreenProps {
@@ -31,7 +31,7 @@ export const AnalysisScreen: React.FC<AnalysisScreenProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [expandedMeals, setExpandedMeals] = useState<Set<MealType>>(new Set(['breakfast']));
 
-  const analysisService = AnalysisServiceManager.getInstance();
+  const analysisDataService = AnalysisDataService.getInstance();
 
   useEffect(() => {
     performAnalysis();
@@ -48,11 +48,12 @@ export const AnalysisScreen: React.FC<AnalysisScreenProps> = ({
       setIsLoading(true);
       setError(null);
 
-      console.log('Starting food analysis for:', foods.map(f => f.name));
-      const results = await analysisService.analyzeFoods(foods);
+      console.log('Starting food analysis and saving for:', foods.map(f => f.name));
+      const results = await analysisDataService.analyzeAndSaveFoods(foods);
       
       setAnalysisResults(results);
-      console.log('Analysis completed successfully');
+      console.log('Analysis and save completed successfully. Saved', results.length, 'results');
+      console.log('Results:', results.map(r => ({ foodId: r.foodId, entryId: r.foodEntryId })));
     } catch (err) {
       console.error('Analysis failed:', err);
       setError(`Analysis failed: ${err}`);
@@ -105,9 +106,9 @@ export const AnalysisScreen: React.FC<AnalysisScreenProps> = ({
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={Colors.primary} />
-          <Text style={styles.loadingText}>Analyzing your foods...</Text>
+          <Text style={styles.loadingText}>Analyzing and saving your foods...</Text>
           <Text style={styles.loadingSubtext}>
-            {analysisService.isUsingMockService() ? 'Using mock data' : 'Using AI analysis'}
+            This may take a moment...
           </Text>
         </View>
       </SafeAreaView>
