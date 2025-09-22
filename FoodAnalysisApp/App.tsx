@@ -1,3 +1,4 @@
+import 'react-native-gesture-handler';
 import React, { useEffect } from 'react';
 import { StatusBar } from 'react-native';
 import { AppNavigator } from './src/navigation/AppNavigator';
@@ -12,7 +13,7 @@ function App(): React.JSX.Element {
         // Configure analysis service (using mock for development)
         const analysisService = AnalysisServiceManager.getInstance();
         analysisService.enableMockService();
-        
+
         console.log('App initialized successfully');
       } catch (error) {
         console.error('Failed to initialize app:', error);

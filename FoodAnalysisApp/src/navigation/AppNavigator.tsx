@@ -2,12 +2,13 @@ import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 
 // Screens
 import { ConnectedFoodInputScreen } from '../screens/ConnectedFoodInputScreen';
 import { ConnectedAnalysisScreen } from '../screens/ConnectedAnalysisScreen';
 import { ConnectedComparisonScreen } from '../screens/ConnectedComparisonScreen';
+import { PastRecordsScreen } from '../screens/PastRecordsScreen';
 // import { PastRecordsScreen } from '../screens/PastRecordsScreen';
 // import { WeeklyReportScreen } from '../screens/WeeklyReportScreen';
 
@@ -37,21 +38,37 @@ const RecordsStack = createStackNavigator<RecordsStackParamList>();
 
 // Custom Tab Bar Component
 const CustomTabBar: React.FC<any> = ({ state, descriptors, navigation }) => {
+  const handleTabPress = (index: number) => {
+    const route = state.routes[index];
+    const isFocused = state.index === index;
+
+    if (!isFocused) {
+      navigation.navigate(route.name);
+    }
+  };
+
   return (
     <View style={styles.tabBar}>
       {/* Left Tab - Input */}
-      <View style={styles.tabSection}>
-        <View 
+      <TouchableOpacity
+        style={styles.tabSection}
+        onPress={() => handleTabPress(0)}
+        activeOpacity={0.7}
+      >
+        <View
           style={[
             styles.tabButton,
             state.index === 0 && styles.tabButtonActive
           ]}
         >
-          <Text style={styles.tabIcon}>
-            {state.index === 0 ? '🍽️' : '🍽️'}
+          <Text style={[
+            styles.tabIcon,
+            state.index === 0 ? { color: Colors.white } : { color: Colors.inactive }
+          ]}>
+            🍽️
           </Text>
         </View>
-      </View>
+      </TouchableOpacity>
 
       {/* Center Logo */}
       <View style={styles.logoContainer}>
@@ -61,18 +78,25 @@ const CustomTabBar: React.FC<any> = ({ state, descriptors, navigation }) => {
       </View>
 
       {/* Right Tab - Records */}
-      <View style={styles.tabSection}>
-        <View 
+      <TouchableOpacity
+        style={styles.tabSection}
+        onPress={() => handleTabPress(1)}
+        activeOpacity={0.7}
+      >
+        <View
           style={[
             styles.tabButton,
             state.index === 1 && styles.tabButtonActive
           ]}
         >
-          <Text style={styles.tabIcon}>
-            {state.index === 1 ? '📊' : '📊'}
+          <Text style={[
+            styles.tabIcon,
+            state.index === 1 ? { color: Colors.white } : { color: Colors.inactive }
+          ]}>
+            📊
           </Text>
         </View>
-      </View>
+      </TouchableOpacity>
     </View>
   );
 };
@@ -80,47 +104,40 @@ const CustomTabBar: React.FC<any> = ({ state, descriptors, navigation }) => {
 // Input Stack Navigator
 const InputStackNavigator: React.FC = () => {
   return (
-    <InputStack.Navigator 
-      screenOptions={{ 
+    <InputStack.Navigator
+      screenOptions={{
         headerShown: false,
         cardStyle: { backgroundColor: Colors.background }
       }}
     >
-      <InputStack.Screen 
-        name="FoodInput" 
-        component={ConnectedFoodInputScreen} 
+      <InputStack.Screen
+        name="FoodInput"
+        component={ConnectedFoodInputScreen}
       />
-      <InputStack.Screen 
-        name="Analysis" 
+      <InputStack.Screen
+        name="Analysis"
         component={ConnectedAnalysisScreen}
       />
-      <InputStack.Screen 
-        name="Comparison" 
+      <InputStack.Screen
+        name="Comparison"
         component={ConnectedComparisonScreen}
       />
     </InputStack.Navigator>
   );
 };
 
-// Records Stack Navigator (Placeholder)
+// Records Stack Navigator
 const RecordsStackNavigator: React.FC = () => {
-  const PlaceholderScreen = () => (
-    <View style={styles.placeholderContainer}>
-      <Text style={styles.placeholderText}>Past Records</Text>
-      <Text style={styles.placeholderSubtext}>Coming soon...</Text>
-    </View>
-  );
-
   return (
-    <RecordsStack.Navigator 
-      screenOptions={{ 
+    <RecordsStack.Navigator
+      screenOptions={{
         headerShown: false,
         cardStyle: { backgroundColor: Colors.background }
       }}
     >
-      <RecordsStack.Screen 
-        name="PastRecords" 
-        component={PlaceholderScreen} 
+      <RecordsStack.Screen
+        name="PastRecords"
+        component={PastRecordsScreen}
       />
     </RecordsStack.Navigator>
   );
@@ -136,15 +153,15 @@ export const AppNavigator: React.FC = () => {
           headerShown: false,
         }}
       >
-        <Tab.Screen 
-          name="InputTab" 
+        <Tab.Screen
+          name="InputTab"
           component={InputStackNavigator}
           options={{
             tabBarLabel: 'Input',
           }}
         />
-        <Tab.Screen 
-          name="RecordsTab" 
+        <Tab.Screen
+          name="RecordsTab"
           component={RecordsStackNavigator}
           options={{
             tabBarLabel: 'Records',
@@ -171,19 +188,21 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingVertical: 10,
   },
   tabButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: 'transparent',
   },
   tabButtonActive: {
     backgroundColor: Colors.primary,
   },
   tabIcon: {
-    fontSize: 20,
+    fontSize: 24,
   },
   logoContainer: {
     alignItems: 'center',
