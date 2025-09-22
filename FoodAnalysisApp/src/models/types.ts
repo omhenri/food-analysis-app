@@ -1,0 +1,95 @@
+// Enum types for meal types and portion sizes
+export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
+export type PortionSize = '1/1' | '1/2' | '1/3' | '1/4' | '1/8';
+export type ChemicalCategory = 'good' | 'bad' | 'neutral';
+export type ConsumptionStatus = 'under' | 'optimal' | 'over';
+
+// Week Model
+export interface Week {
+  id: number;
+  weekNumber: number;
+  startDate: string;
+  endDate?: string;
+  createdAt: string;
+}
+
+// Day Model
+export interface Day {
+  id: number;
+  weekId: number;
+  dayNumber: number; // 1-7 (Monday-Sunday)
+  date: string;
+  createdAt: string;
+}
+
+// Food Item Model
+export interface FoodItem {
+  id: string;
+  name: string;
+  mealType: MealType;
+  portion: PortionSize;
+}
+
+// Food Entry Model (for database storage)
+export interface FoodEntry {
+  id?: number;
+  dayId: number;
+  foodName: string;
+  mealType: MealType;
+  portion: PortionSize;
+  createdAt?: string;
+}
+
+// Chemical Substance Model
+export interface ChemicalSubstance {
+  name: string;
+  category: ChemicalCategory;
+  amount: number; // in grams
+  mealType: string;
+}
+
+// Analysis Result Model
+export interface AnalysisResult {
+  id?: number;
+  foodEntryId: number;
+  foodId: string;
+  ingredients: string[];
+  chemicalSubstances: ChemicalSubstance[];
+  analyzedAt?: string;
+}
+
+// Comparison Data Model
+export interface ComparisonData {
+  substance: string;
+  consumed: number;
+  recommended: number;
+  percentage: number;
+  status: ConsumptionStatus;
+}
+
+// Recommended Intake Model
+export interface RecommendedIntake {
+  [substanceName: string]: number; // substance name -> recommended amount in grams
+}
+
+// Weekly Data Model
+export interface WeeklyData {
+  weekId: number;
+  totalConsumption: { [substance: string]: number };
+  recommendedIntake: { [substance: string]: number };
+  comparisonData: ComparisonData[];
+}
+
+// Food Input Props
+export interface FoodInputProps {
+  onAddFood: (food: FoodItem) => void;
+  onRemoveFood: (index: number) => void;
+  foods: FoodItem[];
+}
+
+// App Error Model
+export interface AppError {
+  type: 'network' | 'database' | 'validation' | 'analysis';
+  message: string;
+  details?: string;
+}

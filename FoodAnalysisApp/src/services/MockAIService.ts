@@ -1,0 +1,179 @@
+import { FoodItem, AnalysisResult, ChemicalSubstance, RecommendedIntake } from '../models/types';
+
+// Mock AI service for development and testing
+export class MockAIService {
+  private static instance: MockAIService;
+
+  private constructor() {}
+
+  public static getInstance(): MockAIService {
+    if (!MockAIService.instance) {
+      MockAIService.instance = new MockAIService();
+    }
+    return MockAIService.instance;
+  }
+
+  // Mock food analysis with realistic data
+  public async analyzeFoods(foods: FoodItem[]): Promise<AnalysisResult[]> {
+    // Simulate API delay
+    await this.delay(1500);
+
+    return foods.map(food => this.generateMockAnalysis(food));
+  }
+
+  // Mock recommended intake
+  public async getRecommendedIntake(age: number = 25): Promise<RecommendedIntake> {
+    await this.delay(500);
+
+    return {
+      protein: 50,
+      carbohydrates: 300,
+      fat: 65,
+      fiber: 25,
+      sugar: 50,
+      sodium: 2.3,
+      calcium: 1,
+      iron: 0.018,
+      'vitamin-c': 0.09,
+      'vitamin-d': 0.00002,
+      'vitamin-a': 0.0009,
+      'vitamin-e': 0.015,
+      'vitamin-k': 0.00012,
+      'vitamin-b1': 0.0012,
+      'vitamin-b2': 0.0013,
+      'vitamin-b3': 0.016,
+      'vitamin-b6': 0.0017,
+      'vitamin-b12': 0.0000024,
+      'folic-acid': 0.0004,
+      potassium: 3.5,
+      magnesium: 0.4,
+      zinc: 0.011,
+      phosphorus: 0.7,
+      selenium: 0.000055,
+    };
+  }
+
+  // Generate mock analysis for a single food item
+  private generateMockAnalysis(food: FoodItem): AnalysisResult {
+    const mockData = this.getFoodMockData(food.name.toLowerCase());
+    const portionMultiplier = this.getPortionMultiplier(food.portion);
+
+    return {
+      foodId: food.id,
+      foodEntryId: 0,
+      ingredients: mockData.ingredients,
+      chemicalSubstances: mockData.substances.map(substance => ({
+        ...substance,
+        amount: substance.amount * portionMultiplier,
+        mealType: food.mealType,
+      })),
+    };
+  }
+
+  // Get mock data based on food name
+  private getFoodMockData(foodName: string): {
+    ingredients: string[];
+    substances: ChemicalSubstance[];
+  } {
+    // Common food patterns
+    if (foodName.includes('apple') || foodName.includes('fruit')) {
+      return {
+        ingredients: ['Natural sugars', 'Fiber', 'Water', 'Pectin'],
+        substances: [
+          { name: 'Carbohydrates', category: 'good', amount: 25, mealType: '' },
+          { name: 'Fiber', category: 'good', amount: 4, mealType: '' },
+          { name: 'Vitamin C', category: 'good', amount: 0.005, mealType: '' },
+          { name: 'Sugar', category: 'neutral', amount: 19, mealType: '' },
+          { name: 'Potassium', category: 'good', amount: 0.2, mealType: '' },
+        ],
+      };
+    }
+
+    if (foodName.includes('chicken') || foodName.includes('meat')) {
+      return {
+        ingredients: ['Protein', 'Fat', 'Water', 'Minerals'],
+        substances: [
+          { name: 'Protein', category: 'good', amount: 31, mealType: '' },
+          { name: 'Fat', category: 'neutral', amount: 3.6, mealType: '' },
+          { name: 'Iron', category: 'good', amount: 0.0009, mealType: '' },
+          { name: 'Vitamin B6', category: 'good', amount: 0.0005, mealType: '' },
+          { name: 'Sodium', category: 'bad', amount: 0.074, mealType: '' },
+        ],
+      };
+    }
+
+    if (foodName.includes('rice') || foodName.includes('grain')) {
+      return {
+        ingredients: ['Starch', 'Protein', 'Water', 'Minerals'],
+        substances: [
+          { name: 'Carbohydrates', category: 'neutral', amount: 28, mealType: '' },
+          { name: 'Protein', category: 'good', amount: 2.7, mealType: '' },
+          { name: 'Fiber', category: 'good', amount: 0.4, mealType: '' },
+          { name: 'Magnesium', category: 'good', amount: 0.025, mealType: '' },
+          { name: 'Phosphorus', category: 'good', amount: 0.068, mealType: '' },
+        ],
+      };
+    }
+
+    if (foodName.includes('bread') || foodName.includes('wheat')) {
+      return {
+        ingredients: ['Wheat flour', 'Water', 'Yeast', 'Salt'],
+        substances: [
+          { name: 'Carbohydrates', category: 'neutral', amount: 49, mealType: '' },
+          { name: 'Protein', category: 'good', amount: 9, mealType: '' },
+          { name: 'Fiber', category: 'good', amount: 2.7, mealType: '' },
+          { name: 'Sodium', category: 'bad', amount: 0.491, mealType: '' },
+          { name: 'Iron', category: 'good', amount: 0.0036, mealType: '' },
+        ],
+      };
+    }
+
+    if (foodName.includes('milk') || foodName.includes('dairy')) {
+      return {
+        ingredients: ['Protein', 'Lactose', 'Fat', 'Water', 'Minerals'],
+        substances: [
+          { name: 'Protein', category: 'good', amount: 3.4, mealType: '' },
+          { name: 'Carbohydrates', category: 'neutral', amount: 5, mealType: '' },
+          { name: 'Fat', category: 'neutral', amount: 3.25, mealType: '' },
+          { name: 'Calcium', category: 'good', amount: 0.113, mealType: '' },
+          { name: 'Vitamin D', category: 'good', amount: 0.0000012, mealType: '' },
+        ],
+      };
+    }
+
+    // Default mock data for unknown foods
+    return {
+      ingredients: ['Various nutrients', 'Water', 'Organic compounds'],
+      substances: [
+        { name: 'Carbohydrates', category: 'neutral', amount: 20, mealType: '' },
+        { name: 'Protein', category: 'good', amount: 8, mealType: '' },
+        { name: 'Fat', category: 'neutral', amount: 5, mealType: '' },
+        { name: 'Fiber', category: 'good', amount: 3, mealType: '' },
+        { name: 'Sodium', category: 'bad', amount: 0.1, mealType: '' },
+      ],
+    };
+  }
+
+  // Get portion multiplier
+  private getPortionMultiplier(portion: string): number {
+    switch (portion) {
+      case '1/1': return 1.0;
+      case '1/2': return 0.5;
+      case '1/3': return 0.33;
+      case '1/4': return 0.25;
+      case '1/8': return 0.125;
+      default: return 1.0;
+    }
+  }
+
+  // Simulate network delay
+  private delay(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  // Test connection (always succeeds for mock)
+  public async testConnection(): Promise<boolean> {
+    await this.delay(100);
+    return true;
+  }
+}
