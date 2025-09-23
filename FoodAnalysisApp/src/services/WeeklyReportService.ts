@@ -1,12 +1,15 @@
 import { DatabaseService } from './DatabaseService';
 import { AnalysisDataService } from './AnalysisDataService';
 import { AnalysisServiceManager } from './AnalysisServiceManager';
+import { EnhancedAnalysisDataService } from './EnhancedAnalysisDataService';
 import { 
   Week, 
   Day, 
   ComparisonData, 
   RecommendedIntake,
-  ConsumptionStatus 
+  ConsumptionStatus,
+  EnhancedComparisonData,
+  AnalysisResult
 } from '../models/types';
 
 export interface WeeklyReportData {
@@ -15,15 +18,20 @@ export interface WeeklyReportData {
   totalConsumption: { [substance: string]: number };
   weeklyRecommended: { [substance: string]: number };
   weeklyComparison: ComparisonData[];
+  enhancedWeeklyComparison: EnhancedComparisonData[];
   dailyBreakdown: DailyConsumption[];
   summary: WeeklySummary;
+  trendAnalysis: WeeklyTrendAnalysis;
+  nutritionScore: WeeklyNutritionScore;
 }
 
 export interface DailyConsumption {
   day: Day;
   consumption: { [substance: string]: number };
+  enhancedComparison: EnhancedComparisonData[];
   totalCalories: number;
   mealCount: number;
+  nutritionScore: number;
 }
 
 export interface WeeklySummary {
@@ -35,15 +43,51 @@ export interface WeeklySummary {
   recommendations: string[];
 }
 
+export interface WeeklyTrendAnalysis {
+  weekOverWeekComparison?: {
+    previousWeek: Week;
+    nutritionScoreChange: number;
+    calorieChange: number;
+    improvingNutrients: string[];
+    decliningNutrients: string[];
+  };
+  consistencyScore: number; // 0-100 based on daily tracking consistency
+  dailyVariation: {
+    substance: string;
+    averageDaily: number;
+    standardDeviation: number;
+    mostConsistentDays: number[];
+    leastConsistentDays: number[];
+  }[];
+}
+
+export interface WeeklyNutritionScore {
+  overall: number;
+  daily: { dayNumber: number; score: number }[];
+  trend: 'improving' | 'declining' | 'stable';
+  breakdown: {
+    macronutrients: number;
+    micronutrients: number;
+    harmfulSubstances: number;
+  };
+  weeklyGoals: {
+    achieved: string[];
+    missed: string[];
+    partiallyAchieved: string[];
+  };
+}
+
 export class WeeklyReportService {
   private static instance: WeeklyReportService;
   private databaseService: DatabaseService;
   private analysisDataService: AnalysisDataService;
+  private enhancedAnalysisDataService: EnhancedAnalysisDataService;
   private analysisService: AnalysisServiceManager;
 
   private constructor() {
     this.databaseService = DatabaseService.getInstance();
     this.analysisDataService = AnalysisDataService.getInstance();
+    this.enhancedAnalysisDataService = new EnhancedAnalysisDataService();
     this.analysisService = AnalysisServiceManager.getInstance();
   }
 
@@ -69,11 +113,20 @@ export class WeeklyReportService {
       const dailyRecommended = await this.analysisService.getRecommendedIntake();
       const weeklyRecommended = this.calculateWeeklyRecommended(dailyRecommended);
 
-      // Calculate consumption data
-      const { totalConsumption, dailyBreakdown } = await this.calculateWeeklyConsumption(days);
+      // Calculate consumption data with enhanced analysis
+      const { totalConsumption, dailyBreakdown } = await this.calculateEnhancedWeeklyConsumption(days);
       
       // Generate comparison data
       const weeklyComparison = this.calculateWeeklyComparison(totalConsumption, weeklyRecommended);
+      
+      // Generate enhanced weekly comparison with layered visualization
+      const enhancedWeeklyComparison = await this.generateEnhancedWeeklyComparison(dailyBreakdown);
+      
+      // Generate trend analysis
+      const trendAnalysis = await this.generateWeeklyTrendAnalysis(weekId, dailyBreakdown);
+      
+      // Generate weekly nutrition score
+      const nutritionScore = await this.generateWeeklyNutritionScore(dailyBreakdown, enhancedWeeklyComparison);
       
       // Generate summary
       const summary = this.generateWeeklySummary(
@@ -89,8 +142,11 @@ export class WeeklyReportService {
         totalConsumption,
         weeklyRecommended,
         weeklyComparison,
+        enhancedWeeklyComparison,
         dailyBreakdown,
         summary,
+        trendAnalysis,
+        nutritionScore,
       };
     } catch (error) {
       console.error('Failed to generate weekly report:', error);
@@ -120,8 +176,8 @@ export class WeeklyReportService {
     return weeklyRecommended;
   }
 
-  // Calculate weekly consumption from all days
-  private async calculateWeeklyConsumption(days: Day[]): Promise<{
+  // Calculate enhanced weekly consumption from all days
+  private async calculateEnhancedWeeklyConsumption(days: Day[]): Promise<{
     totalConsumption: { [substance: string]: number };
     dailyBreakdown: DailyConsumption[];
   }> {
@@ -165,11 +221,27 @@ export class WeeklyReportService {
           });
         });
 
+        // Generate enhanced comparison for this day
+        let enhancedComparison: EnhancedComparisonData[] = [];
+        let nutritionScore = 0;
+        
+        if (dayAnalysis.length > 0) {
+          try {
+            enhancedComparison = await this.enhancedAnalysisDataService.calculateEnhancedComparison(dayAnalysis);
+            const scoreData = await this.enhancedAnalysisDataService.calculateNutritionScore(enhancedComparison);
+            nutritionScore = scoreData.overall;
+          } catch (error) {
+            console.error(`Failed to calculate enhanced comparison for day ${day.id}:`, error);
+          }
+        }
+
         dailyBreakdown.push({
           day,
           consumption: dayConsumption,
+          enhancedComparison,
           totalCalories,
           mealCount,
+          nutritionScore,
         });
       } catch (error) {
         console.error(`Failed to get analysis for day ${day.id}:`, error);
@@ -177,13 +249,191 @@ export class WeeklyReportService {
         dailyBreakdown.push({
           day,
           consumption: {},
+          enhancedComparison: [],
           totalCalories: 0,
           mealCount: 0,
+          nutritionScore: 0,
         });
       }
     }
 
     return { totalConsumption, dailyBreakdown };
+  }
+
+  // Generate enhanced weekly comparison with layered visualization
+  private async generateEnhancedWeeklyComparison(dailyBreakdown: DailyConsumption[]): Promise<EnhancedComparisonData[]> {
+    try {
+      // Collect all daily enhanced comparison data
+      const dailyEnhancedData = dailyBreakdown
+        .map(day => day.enhancedComparison)
+        .filter(data => data.length > 0);
+
+      if (dailyEnhancedData.length === 0) {
+        return [];
+      }
+
+      // Calculate weekly totals using the enhanced analysis service
+      const weeklyTotals = await this.enhancedAnalysisDataService.calculateWeeklyTotals(dailyEnhancedData);
+
+      // Add daily breakdown overlay data to each weekly total
+      const enhancedWeeklyData = weeklyTotals.map(weeklyData => {
+        // Calculate daily breakdown for this substance
+        const dailyValues = dailyBreakdown.map(day => {
+          const substanceData = day.enhancedComparison.find(
+            item => item.substance === weeklyData.substance
+          );
+          return {
+            dayNumber: day.day.dayNumber,
+            value: substanceData?.consumed || 0,
+            status: substanceData?.status || 'deficient',
+          };
+        });
+
+        // Add daily breakdown to the weekly data
+        return {
+          ...weeklyData,
+          dailyBreakdown: dailyValues,
+          weeklyAverage: weeklyData.consumed / 7,
+          dailyVariation: this.calculateDailyVariation(dailyValues.map(d => d.value)),
+        };
+      });
+
+      return enhancedWeeklyData;
+    } catch (error) {
+      console.error('Failed to generate enhanced weekly comparison:', error);
+      return [];
+    }
+  }
+
+  // Generate weekly trend analysis
+  private async generateWeeklyTrendAnalysis(weekId: number, dailyBreakdown: DailyConsumption[]): Promise<WeeklyTrendAnalysis> {
+    try {
+      // Get previous week for comparison
+      const previousWeek = await this.getPreviousWeek(weekId);
+      let weekOverWeekComparison;
+
+      if (previousWeek) {
+        const previousWeekData = await this.generateWeeklyReport(previousWeek.id);
+        
+        // Calculate changes
+        const currentNutritionScore = dailyBreakdown.reduce((sum, day) => sum + day.nutritionScore, 0) / dailyBreakdown.length;
+        const previousNutritionScore = previousWeekData.nutritionScore.overall;
+        const nutritionScoreChange = currentNutritionScore - previousNutritionScore;
+
+        const currentCalories = dailyBreakdown.reduce((sum, day) => sum + day.totalCalories, 0) / dailyBreakdown.length;
+        const previousCalories = previousWeekData.summary.averageCaloriesPerDay;
+        const calorieChange = currentCalories - previousCalories;
+
+        // Identify improving and declining nutrients
+        const improvingNutrients: string[] = [];
+        const decliningNutrients: string[] = [];
+
+        // Compare substance statuses between weeks
+        for (const currentSubstance of dailyBreakdown[0]?.enhancedComparison || []) {
+          const previousSubstance = previousWeekData.enhancedWeeklyComparison.find(
+            s => s.substance === currentSubstance.substance
+          );
+          
+          if (previousSubstance) {
+            const statusImprovement = this.compareNutritionalStatus(
+              previousSubstance.status,
+              currentSubstance.status
+            );
+            
+            if (statusImprovement > 0) {
+              improvingNutrients.push(currentSubstance.substance);
+            } else if (statusImprovement < 0) {
+              decliningNutrients.push(currentSubstance.substance);
+            }
+          }
+        }
+
+        weekOverWeekComparison = {
+          previousWeek,
+          nutritionScoreChange,
+          calorieChange,
+          improvingNutrients,
+          decliningNutrients,
+        };
+      }
+
+      // Calculate consistency score
+      const daysWithData = dailyBreakdown.filter(day => day.mealCount > 0).length;
+      const consistencyScore = (daysWithData / 7) * 100;
+
+      // Calculate daily variation for key nutrients
+      const dailyVariation = this.calculateNutrientVariations(dailyBreakdown);
+
+      return {
+        weekOverWeekComparison,
+        consistencyScore,
+        dailyVariation,
+      };
+    } catch (error) {
+      console.error('Failed to generate weekly trend analysis:', error);
+      return {
+        consistencyScore: 0,
+        dailyVariation: [],
+      };
+    }
+  }
+
+  // Generate weekly nutrition score with trend analysis
+  private async generateWeeklyNutritionScore(
+    dailyBreakdown: DailyConsumption[],
+    enhancedWeeklyComparison: EnhancedComparisonData[]
+  ): Promise<WeeklyNutritionScore> {
+    try {
+      // Calculate daily scores
+      const dailyScores = dailyBreakdown.map(day => ({
+        dayNumber: day.day.dayNumber,
+        score: day.nutritionScore,
+      }));
+
+      // Calculate overall weekly score
+      const overall = dailyScores.reduce((sum, day) => sum + day.score, 0) / dailyScores.length;
+
+      // Determine trend
+      const firstHalf = dailyScores.slice(0, 3).reduce((sum, day) => sum + day.score, 0) / 3;
+      const secondHalf = dailyScores.slice(4, 7).reduce((sum, day) => sum + day.score, 0) / 3;
+      const trend = secondHalf > firstHalf + 5 ? 'improving' : 
+                   secondHalf < firstHalf - 5 ? 'declining' : 'stable';
+
+      // Calculate breakdown scores
+      const breakdown = {
+        macronutrients: this.calculateCategoryScore(enhancedWeeklyComparison, 'macronutrient'),
+        micronutrients: this.calculateCategoryScore(enhancedWeeklyComparison, 'micronutrient'),
+        harmfulSubstances: this.calculateCategoryScore(enhancedWeeklyComparison, 'harmful'),
+      };
+
+      // Determine weekly goals achievement
+      const weeklyGoals = this.assessWeeklyGoals(enhancedWeeklyComparison);
+
+      return {
+        overall: Math.round(overall),
+        daily: dailyScores,
+        trend,
+        breakdown,
+        weeklyGoals,
+      };
+    } catch (error) {
+      console.error('Failed to generate weekly nutrition score:', error);
+      return {
+        overall: 0,
+        daily: [],
+        trend: 'stable',
+        breakdown: {
+          macronutrients: 0,
+          micronutrients: 0,
+          harmfulSubstances: 0,
+        },
+        weeklyGoals: {
+          achieved: [],
+          missed: [],
+          partiallyAchieved: [],
+        },
+      };
+    }
   }
 
   // Calculate weekly comparison
@@ -359,5 +609,135 @@ export class WeeklyReportService {
       console.error('Failed to get available weeks:', error);
       return [];
     }
+  }
+
+  // Helper methods for enhanced weekly analysis
+
+  private async getPreviousWeek(currentWeekId: number): Promise<Week | null> {
+    try {
+      const allWeeks = await this.databaseService.getAllWeeks();
+      const currentWeek = allWeeks.find(w => w.id === currentWeekId);
+      
+      if (!currentWeek) return null;
+      
+      return allWeeks.find(w => w.weekNumber === currentWeek.weekNumber - 1) || null;
+    } catch (error) {
+      console.error('Failed to get previous week:', error);
+      return null;
+    }
+  }
+
+  private calculateDailyVariation(values: number[]): number {
+    if (values.length === 0) return 0;
+    
+    const mean = values.reduce((sum, val) => sum + val, 0) / values.length;
+    const variance = values.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / values.length;
+    return Math.sqrt(variance);
+  }
+
+  private compareNutritionalStatus(
+    previousStatus: 'deficient' | 'optimal' | 'acceptable' | 'excess',
+    currentStatus: 'deficient' | 'optimal' | 'acceptable' | 'excess'
+  ): number {
+    const statusValues = {
+      'deficient': 1,
+      'acceptable': 2,
+      'optimal': 3,
+      'excess': 0, // Excess is worst for most nutrients
+    };
+
+    return statusValues[currentStatus] - statusValues[previousStatus];
+  }
+
+  private calculateNutrientVariations(dailyBreakdown: DailyConsumption[]): WeeklyTrendAnalysis['dailyVariation'] {
+    const variations: WeeklyTrendAnalysis['dailyVariation'] = [];
+    
+    // Get all unique substances
+    const allSubstances = new Set<string>();
+    dailyBreakdown.forEach(day => {
+      day.enhancedComparison.forEach(substance => {
+        allSubstances.add(substance.substance);
+      });
+    });
+
+    // Calculate variation for each substance
+    allSubstances.forEach(substanceName => {
+      const dailyValues = dailyBreakdown.map(day => {
+        const substance = day.enhancedComparison.find(s => s.substance === substanceName);
+        return substance?.consumed || 0;
+      });
+
+      const averageDaily = dailyValues.reduce((sum, val) => sum + val, 0) / dailyValues.length;
+      const standardDeviation = this.calculateDailyVariation(dailyValues);
+
+      // Find most and least consistent days
+      const deviations = dailyValues.map((val, index) => ({
+        dayNumber: index + 1,
+        deviation: Math.abs(val - averageDaily),
+      }));
+
+      deviations.sort((a, b) => a.deviation - b.deviation);
+      
+      const mostConsistentDays = deviations.slice(0, 3).map(d => d.dayNumber);
+      const leastConsistentDays = deviations.slice(-3).map(d => d.dayNumber);
+
+      variations.push({
+        substance: substanceName,
+        averageDaily,
+        standardDeviation,
+        mostConsistentDays,
+        leastConsistentDays,
+      });
+    });
+
+    return variations;
+  }
+
+  private calculateCategoryScore(
+    enhancedWeeklyComparison: EnhancedComparisonData[],
+    category: 'macronutrient' | 'micronutrient' | 'harmful' | 'calorie'
+  ): number {
+    const categorySubstances = enhancedWeeklyComparison.filter(s => s.category === category);
+    
+    if (categorySubstances.length === 0) return 0;
+
+    const totalScore = categorySubstances.reduce((sum, substance) => {
+      switch (substance.status) {
+        case 'optimal': return sum + 100;
+        case 'acceptable': return sum + 80;
+        case 'deficient': return sum + 40;
+        case 'excess': return sum + (category === 'harmful' ? 20 : 60);
+        default: return sum;
+      }
+    }, 0);
+
+    return Math.round(totalScore / categorySubstances.length);
+  }
+
+  private assessWeeklyGoals(enhancedWeeklyComparison: EnhancedComparisonData[]): WeeklyNutritionScore['weeklyGoals'] {
+    const achieved: string[] = [];
+    const missed: string[] = [];
+    const partiallyAchieved: string[] = [];
+
+    enhancedWeeklyComparison.forEach(substance => {
+      switch (substance.status) {
+        case 'optimal':
+          achieved.push(substance.substance);
+          break;
+        case 'acceptable':
+          partiallyAchieved.push(substance.substance);
+          break;
+        case 'deficient':
+        case 'excess':
+          missed.push(substance.substance);
+          break;
+      }
+    });
+
+    return {
+      achieved,
+      missed,
+      partiallyAchieved,
+    };
   }
 }

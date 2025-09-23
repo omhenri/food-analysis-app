@@ -5,6 +5,7 @@ import {
   FoodEntry,
   AnalysisResult,
   WeeklyData,
+  EnhancedComparisonData,
 } from '../models/types';
 import {
   DATABASE_NAME,
@@ -13,6 +14,13 @@ import {
   DATABASE_SIZE,
   CREATE_TABLES,
 } from '../models/database';
+import {
+  SUBSTANCE_CATEGORIES,
+  REFERENCE_VALUES,
+  INSERT_SUBSTANCE_CATEGORIES_SQL,
+  INSERT_REFERENCE_VALUES_SQL,
+} from '../data/referenceData';
+import { DatabaseError } from '../utils/errorHandler';
 
 // Enable debugging in development
 SQLite.DEBUG(true);
@@ -51,9 +59,13 @@ export class DatabaseService {
       // Create all tables
       await this.createTables();
       console.log('Database tables created successfully');
+
+      // Seed reference data
+      await this.seedReferenceData();
+      console.log('Reference data seeded successfully');
     } catch (error) {
       console.error('Database initialization failed:', error);
-      throw new Error(`Failed to initialize database: ${error}`);
+      throw new DatabaseError(`Failed to initialize database: ${error}`, error as Error);
     }
   }
 
@@ -69,7 +81,7 @@ export class DatabaseService {
       }
     } catch (error) {
       console.error('Failed to create tables:', error);
-      throw error;
+      throw new DatabaseError('Failed to create database tables', error as Error);
     }
   }
 
@@ -99,7 +111,7 @@ export class DatabaseService {
       }
     } catch (error) {
       console.error('Failed to get current week:', error);
-      throw error;
+      throw new DatabaseError('Failed to retrieve current week data', error as Error);
     }
   }
 
@@ -416,6 +428,194 @@ export class DatabaseService {
       return days;
     } catch (error) {
       console.error('Failed to get days for week:', error);
+      throw error;
+    }
+  }
+
+  // Seed reference data for enhanced comparison
+  private async seedReferenceData(): Promise<void> {
+    if (!this.database) {
+      throw new Error('Database not initialized');
+    }
+
+    try {
+      // Insert substance categories
+      for (const category of SUBSTANCE_CATEGORIES) {
+        await this.database.executeSql(INSERT_SUBSTANCE_CATEGORIES_SQL, [
+          category.id,
+          category.name,
+          category.type,
+          category.display_order,
+          category.default_unit,
+          category.description,
+        ]);
+      }
+
+      // Insert reference values
+      for (const refValue of REFERENCE_VALUES) {
+        await this.database.executeSql(INSERT_REFERENCE_VALUES_SQL, [
+          refValue.id,
+          refValue.substance_name,
+          refValue.category_id,
+          refValue.age_group,
+          refValue.gender,
+          refValue.type,
+          refValue.value,
+          refValue.unit,
+          refValue.source,
+          refValue.color,
+          refValue.label,
+        ]);
+      }
+    } catch (error) {
+      console.error('Failed to seed reference data:', error);
+      throw new DatabaseError('Failed to seed reference data', error as Error);
+    }
+  }
+
+  // Get substance categories
+  public async getSubstanceCategories(): Promise<any[]> {
+    if (!this.database) {
+      throw new Error('Database not initialized');
+    }
+
+    try {
+      const [results] = await this.database.executeSql(
+        'SELECT * FROM substance_categories ORDER BY display_order'
+      );
+
+      const categories = [];
+      for (let i = 0; i < results.rows.length; i++) {
+        categories.push(results.rows.item(i));
+      }
+
+      return categories;
+    } catch (error) {
+      console.error('Failed to get substance categories:', error);
+      throw error;
+    }
+  }
+
+  // Get reference values for a substance
+  public async getReferenceValues(substanceName: string, ageGroup: string = '18-29', gender: string = 'all'): Promise<any[]> {
+    if (!this.database) {
+      throw new Error('Database not initialized');
+    }
+
+    try {
+      const [results] = await this.database.executeSql(
+        'SELECT * FROM reference_values WHERE substance_name = ? AND age_group = ? AND (gender = ? OR gender = "all") ORDER BY value',
+        [substanceName, ageGroup, gender]
+      );
+
+      const referenceValues = [];
+      for (let i = 0; i < results.rows.length; i++) {
+        referenceValues.push(results.rows.item(i));
+      }
+
+      return referenceValues;
+    } catch (error) {
+      console.error('Failed to get reference values:', error);
+      throw error;
+    }
+  }
+
+  // Save enhanced comparison result
+  public async saveEnhancedComparisonResult(dayId: number, data: EnhancedComparisonData): Promise<void> {
+    if (!this.database) {
+      throw new Error('Database not initialized');
+    }
+
+    try {
+      await this.database.executeSql(
+        'INSERT OR REPLACE INTO enhanced_comparison_results (day_id, substance_name, category_id, consumed_amount, unit, status, nutrition_score, layers_data, reference_data) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [
+          dayId,
+          data.substance,
+          data.category,
+          data.consumed,
+          data.unit,
+          data.status,
+          0, // nutrition_score placeholder
+          JSON.stringify(data.layers),
+          JSON.stringify(data.referenceValues),
+        ]
+      );
+    } catch (error) {
+      console.error('Failed to save enhanced comparison result:', error);
+      throw error;
+    }
+  }
+
+  // Get enhanced comparison results for a day
+  public async getEnhancedComparisonResults(dayId: number): Promise<any[]> {
+    if (!this.database) {
+      throw new Error('Database not initialized');
+    }
+
+    try {
+      const [results] = await this.database.executeSql(
+        'SELECT * FROM enhanced_comparison_results WHERE day_id = ? ORDER BY substance_name',
+        [dayId]
+      );
+
+      const comparisonResults = [];
+      for (let i = 0; i < results.rows.length; i++) {
+        const row = results.rows.item(i);
+        comparisonResults.push({
+          ...row,
+          layers_data: JSON.parse(row.layers_data),
+          reference_data: JSON.parse(row.reference_data),
+        });
+      }
+
+      return comparisonResults;
+    } catch (error) {
+      console.error('Failed to get enhanced comparison results:', error);
+      throw error;
+    }
+  }
+
+  // Check if reference data exists
+  public async hasReferenceData(): Promise<boolean> {
+    if (!this.database) {
+      throw new Error('Database not initialized');
+    }
+
+    try {
+      const [results] = await this.database.executeSql(
+        'SELECT COUNT(*) as count FROM substance_categories'
+      );
+
+      return results.rows.item(0).count > 0;
+    } catch (error) {
+      console.error('Failed to check reference data:', error);
+      return false;
+    }
+  }
+
+  // Get all substances with their categories
+  public async getSubstancesWithCategories(): Promise<any[]> {
+    if (!this.database) {
+      throw new Error('Database not initialized');
+    }
+
+    try {
+      const [results] = await this.database.executeSql(`
+        SELECT DISTINCT rv.substance_name, sc.id as category_id, sc.name as category_name, sc.type, sc.default_unit
+        FROM reference_values rv
+        JOIN substance_categories sc ON rv.category_id = sc.id
+        ORDER BY sc.display_order, rv.substance_name
+      `);
+
+      const substances = [];
+      for (let i = 0; i < results.rows.length; i++) {
+        substances.push(results.rows.item(i));
+      }
+
+      return substances;
+    } catch (error) {
+      console.error('Failed to get substances with categories:', error);
       throw error;
     }
   }

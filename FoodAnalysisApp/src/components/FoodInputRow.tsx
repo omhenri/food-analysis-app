@@ -8,14 +8,17 @@ import {
   Modal,
 } from 'react-native';
 import { FoodItem, MealType, PortionSize } from '../models/types';
-import { Colors, Spacing, BorderRadius, FontSizes } from '../constants/theme';
-import { MEAL_TYPES, PORTION_SIZES } from '../utils/validation';
+import { Colors, Spacing, BorderRadius, FontSizes, PlatformStyles } from '../constants/theme';
+import { MEAL_TYPES, PORTION_SIZES, validateFoodItem } from '../utils/validation';
+import { accessibility } from '../utils/accessibility';
+import { hapticFeedback } from '../utils/platform';
 
 interface FoodInputRowProps {
   food: FoodItem;
   onFoodChange: (food: FoodItem) => void;
   onRemove?: () => void;
   showRemoveButton?: boolean;
+  showValidation?: boolean;
 }
 
 export const FoodInputRow: React.FC<FoodInputRowProps> = ({
@@ -23,22 +26,32 @@ export const FoodInputRow: React.FC<FoodInputRowProps> = ({
   onFoodChange,
   onRemove,
   showRemoveButton = false,
+  showValidation = true,
 }) => {
   const [showMealTypeModal, setShowMealTypeModal] = useState(false);
   const [showPortionModal, setShowPortionModal] = useState(false);
+  const [isTouched, setIsTouched] = useState(false);
+
+  // Validate food item
+  const validation = validateFoodItem(food);
+  const hasError = !validation.isValid && isTouched && showValidation;
 
   const handleFoodNameChange = (name: string) => {
     onFoodChange({ ...food, name });
   };
 
   const handleMealTypeSelect = (mealType: MealType) => {
+    hapticFeedback.light();
     onFoodChange({ ...food, mealType });
     setShowMealTypeModal(false);
+    accessibility.announce(`Selected ${mealType} meal type`);
   };
 
   const handlePortionSelect = (portion: PortionSize) => {
+    hapticFeedback.light();
     onFoodChange({ ...food, portion });
     setShowPortionModal(false);
+    accessibility.announce(`Selected ${portion} portion`);
   };
 
   const getMealTypeIcon = (mealType: MealType) => {
@@ -63,32 +76,63 @@ export const FoodInputRow: React.FC<FoodInputRowProps> = ({
         <TouchableOpacity
           style={styles.mealTypeButton}
           onPress={() => setShowMealTypeModal(true)}
+          {...accessibility.button(
+            `Select meal type, currently ${food.mealType}`,
+            'Opens meal type selection menu'
+          )}
         >
           <Text style={styles.mealTypeIcon}>{getMealTypeIcon(food.mealType)}</Text>
         </TouchableOpacity>
 
         {/* Food Name Input */}
         <TextInput
-          style={styles.foodInput}
+          style={[
+            styles.foodInput,
+            hasError && styles.foodInputError,
+          ]}
           placeholder="name of food or drink"
           placeholderTextColor={Colors.placeholder}
           value={food.name}
           onChangeText={handleFoodNameChange}
+          onBlur={() => setIsTouched(true)}
+          {...accessibility.textInput(
+            'Food name input',
+            food.name,
+            'Enter the name of the food or drink'
+          )}
         />
 
         {/* Portion Button */}
         <TouchableOpacity
           style={styles.portionButton}
           onPress={() => setShowPortionModal(true)}
+          {...accessibility.button(
+            `Select portion size, currently ${food.portion}`,
+            'Opens portion size selection menu'
+          )}
         >
           <Text style={styles.portionText}>{food.portion}</Text>
           <View style={styles.portionIndicator} />
         </TouchableOpacity>
       </View>
 
+      {/* Validation Error */}
+      {hasError && (
+        <Text style={styles.errorText}>
+          {validation.errors[0]}
+        </Text>
+      )}
+
       {/* Remove Button */}
       {showRemoveButton && onRemove && (
-        <TouchableOpacity style={styles.removeButton} onPress={onRemove}>
+        <TouchableOpacity 
+          style={styles.removeButton} 
+          onPress={onRemove}
+          {...accessibility.button(
+            'Remove food item',
+            'Removes this food entry from the list'
+          )}
+        >
           <Text style={styles.removeButtonText}>×</Text>
         </TouchableOpacity>
       )}
@@ -168,11 +212,7 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.large,
     paddingHorizontal: Spacing.sm,
     paddingVertical: Spacing.xs,
-    shadowColor: Colors.shadow,
-    shadowOffset: { width: 2, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 5,
-    elevation: 3,
+    ...PlatformStyles.cardShadow,
   },
   mealTypeButton: {
     width: 30,
@@ -189,6 +229,15 @@ const styles = StyleSheet.create({
     fontSize: FontSizes.small,
     color: Colors.textPrimary,
     paddingVertical: Spacing.xs,
+  },
+  foodInputError: {
+    color: Colors.error,
+  },
+  errorText: {
+    fontSize: 12,
+    color: Colors.error,
+    marginTop: 4,
+    marginLeft: 12,
   },
   portionButton: {
     flexDirection: 'row',
@@ -233,11 +282,7 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.small,
     padding: Spacing.sm,
     minWidth: 150,
-    shadowColor: Colors.shadow,
-    shadowOffset: { width: 2, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 5,
-    elevation: 5,
+    ...PlatformStyles.shadow,
   },
   mealTypeOption: {
     flexDirection: 'row',
@@ -259,11 +304,7 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.small,
     padding: Spacing.sm,
     minWidth: 100,
-    shadowColor: Colors.shadow,
-    shadowOffset: { width: 2, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 5,
-    elevation: 5,
+    ...PlatformStyles.shadow,
   },
   portionOption: {
     flexDirection: 'row',

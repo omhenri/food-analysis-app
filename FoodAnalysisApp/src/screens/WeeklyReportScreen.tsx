@@ -12,6 +12,9 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { WeeklyReportService, WeeklyReportData } from '../services/WeeklyReportService';
 import { ComparisonCard } from '../components/ComparisonCard';
+import { EnhancedWeeklyComparisonCard } from '../components/EnhancedWeeklyComparisonCard';
+import { WeeklyTrendIndicator } from '../components/WeeklyTrendIndicator';
+import { WeeklyNutritionScoreWidget } from '../components/WeeklyNutritionScoreWidget';
 import { Colors, Spacing, BorderRadius, FontSizes } from '../constants/theme';
 
 type RecordsStackParamList = {
@@ -30,7 +33,7 @@ export const WeeklyReportScreen: React.FC = () => {
   const [reportData, setReportData] = useState<WeeklyReportData | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [currentView, setCurrentView] = useState<'summary' | 'comparison' | 'daily'>('summary');
+  const [currentView, setCurrentView] = useState<'summary' | 'comparison' | 'enhanced' | 'trends' | 'daily'>('summary');
 
   const weeklyReportService = WeeklyReportService.getInstance();
 
@@ -149,6 +152,63 @@ export const WeeklyReportScreen: React.FC = () => {
     );
   };
 
+  const renderEnhancedView = () => {
+    if (!reportData) return null;
+
+    return (
+      <ScrollView 
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <Text style={styles.sectionTitle}>Enhanced Weekly Analysis</Text>
+        
+        {/* Weekly Nutrition Score Widget */}
+        <WeeklyNutritionScoreWidget nutritionScore={reportData.nutritionScore} />
+        
+        {/* Enhanced Weekly Comparison Cards */}
+        {reportData.enhancedWeeklyComparison.map((comparison, index) => (
+          <EnhancedWeeklyComparisonCard
+            key={`${comparison.substance}-${index}`}
+            data={comparison}
+            animated={true}
+            showDailyBreakdown={false}
+          />
+        ))}
+      </ScrollView>
+    );
+  };
+
+  const renderTrendsView = () => {
+    if (!reportData) return null;
+
+    return (
+      <ScrollView 
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <Text style={styles.sectionTitle}>Weekly Trends & Analysis</Text>
+        
+        {/* Weekly Trend Indicator */}
+        <WeeklyTrendIndicator trendAnalysis={reportData.trendAnalysis} />
+        
+        {/* Enhanced comparison with daily breakdown */}
+        <Text style={[styles.sectionTitle, { marginTop: Spacing.lg }]}>
+          Detailed Weekly Breakdown
+        </Text>
+        {reportData.enhancedWeeklyComparison.slice(0, 5).map((comparison, index) => (
+          <EnhancedWeeklyComparisonCard
+            key={`${comparison.substance}-detailed-${index}`}
+            data={comparison}
+            animated={true}
+            showDailyBreakdown={true}
+          />
+        ))}
+      </ScrollView>
+    );
+  };
+
   const renderDailyView = () => {
     if (!reportData) return null;
 
@@ -249,7 +309,12 @@ export const WeeklyReportScreen: React.FC = () => {
         </View>
 
         {/* View Toggle */}
-        <View style={styles.toggleContainer}>
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false}
+          style={styles.toggleContainer}
+          contentContainerStyle={styles.toggleContent}
+        >
           <TouchableOpacity
             style={[
               styles.toggleButton,
@@ -270,6 +335,40 @@ export const WeeklyReportScreen: React.FC = () => {
           <TouchableOpacity
             style={[
               styles.toggleButton,
+              currentView === 'enhanced' && styles.toggleButtonActive,
+            ]}
+            onPress={() => setCurrentView('enhanced')}
+          >
+            <Text
+              style={[
+                styles.toggleButtonText,
+                currentView === 'enhanced' && styles.toggleButtonTextActive,
+              ]}
+            >
+              Enhanced
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.toggleButton,
+              currentView === 'trends' && styles.toggleButtonActive,
+            ]}
+            onPress={() => setCurrentView('trends')}
+          >
+            <Text
+              style={[
+                styles.toggleButtonText,
+                currentView === 'trends' && styles.toggleButtonTextActive,
+              ]}
+            >
+              Trends
+            </Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={[
+              styles.toggleButton,
               currentView === 'comparison' && styles.toggleButtonActive,
             ]}
             onPress={() => setCurrentView('comparison')}
@@ -280,7 +379,7 @@ export const WeeklyReportScreen: React.FC = () => {
                 currentView === 'comparison' && styles.toggleButtonTextActive,
               ]}
             >
-              Comparison
+              Basic
             </Text>
           </TouchableOpacity>
 
@@ -300,10 +399,12 @@ export const WeeklyReportScreen: React.FC = () => {
               Daily
             </Text>
           </TouchableOpacity>
-        </View>
+        </ScrollView>
 
         {/* Content */}
         {currentView === 'summary' && renderSummaryView()}
+        {currentView === 'enhanced' && renderEnhancedView()}
+        {currentView === 'trends' && renderTrendsView()}
         {currentView === 'comparison' && renderComparisonView()}
         {currentView === 'daily' && renderDailyView()}
       </View>
@@ -348,21 +449,22 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   toggleContainer: {
-    flexDirection: 'row',
     backgroundColor: Colors.white,
-    paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
+  toggleContent: {
+    paddingHorizontal: Spacing.md,
+  },
   toggleButton: {
-    flex: 1,
     backgroundColor: Colors.buttonSecondary,
     borderRadius: BorderRadius.pill,
     paddingVertical: Spacing.xs,
-    paddingHorizontal: Spacing.xs,
-    marginHorizontal: 2,
+    paddingHorizontal: Spacing.sm,
+    marginHorizontal: 4,
     alignItems: 'center',
+    minWidth: 80,
   },
   toggleButtonActive: {
     backgroundColor: Colors.primary,

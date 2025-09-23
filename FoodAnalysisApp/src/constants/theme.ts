@@ -1,3 +1,6 @@
+import { Platform } from 'react-native';
+import { platformStyles, platformDimensions } from '../utils/platform';
+
 export const Colors = {
   // Primary Colors
   primary: '#75F5DB',
@@ -23,6 +26,15 @@ export const Colors = {
   inactive: '#595959',
   placeholder: '#DEDBDB',
   shadow: 'rgba(0, 0, 0, 0.05)',
+  lightGray: '#F7FAFC',
+  gray: '#A0AEC0',
+
+  // Enhanced Comparison Colors
+  enhancedPrimary: '#75F5DB', // Theme color for main consumption bars
+  enhancedSecondary1: '#67C7C1', // First gradient variation
+  enhancedSecondary2: '#509A9C', // Second gradient variation
+  referenceBlue: '#4A78CF', // Blue for recommended values
+  referencePink: '#EA92BD', // Pink for limit values
 };
 
 export const Spacing = {
@@ -52,4 +64,42 @@ export const FontSizes = {
 export const Shadows = {
   card: '2px 2px 5px rgba(0, 0, 0, 0.05)',
   tab: '0px -2px 4px rgba(0, 0, 0, 0.05)',
+};
+
+// Platform-specific styles and dimensions
+export const PlatformStyles = platformStyles;
+export const PlatformDimensions = platformDimensions;
+
+// Typography with platform-specific font families
+export const Typography = {
+  h1: {
+    fontSize: FontSizes.xxlarge,
+    fontWeight: 'bold' as const,
+    fontFamily: platformStyles.fontFamily,
+  },
+  h2: {
+    fontSize: FontSizes.xlarge,
+    fontWeight: 'bold' as const,
+    fontFamily: platformStyles.fontFamily,
+  },
+  h3: {
+    fontSize: FontSizes.large,
+    fontWeight: '600' as const,
+    fontFamily: platformStyles.fontFamily,
+  },
+  body: {
+    fontSize: FontSizes.large,
+    fontWeight: 'normal' as const,
+    fontFamily: platformStyles.fontFamily,
+  },
+  caption: {
+    fontSize: FontSizes.medium,
+    fontWeight: 'normal' as const,
+    fontFamily: platformStyles.fontFamily,
+  },
+  small: {
+    fontSize: FontSizes.small,
+    fontWeight: 'normal' as const,
+    fontFamily: platformStyles.fontFamily,
+  },
 };

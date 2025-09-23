@@ -8,9 +8,11 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   Alert,
+  Modal,
 } from 'react-native';
 import { ComparisonData, AnalysisResult } from '../models/types';
 import { ComparisonCard } from '../components/ComparisonCard';
+import { EnhancedComparisonDemoScreen } from './EnhancedComparisonDemoScreen';
 import { Colors, Spacing, BorderRadius, FontSizes } from '../constants/theme';
 import { useAnalysisData } from '../hooks/useAnalysisData';
 
@@ -33,6 +35,7 @@ export const ComparisonScreen: React.FC<ComparisonScreenProps> = ({
   } = useAnalysisData();
 
   const [filterStatus, setFilterStatus] = useState<'all' | 'under' | 'optimal' | 'over'>('all');
+  const [showEnhancedDemo, setShowEnhancedDemo] = useState(false);
 
   useEffect(() => {
     loadComparison();
@@ -166,6 +169,16 @@ export const ComparisonScreen: React.FC<ComparisonScreenProps> = ({
           <Text style={styles.summarySubtext}>
             Compared to recommended daily intake for adults aged 18-29
           </Text>
+          
+          {/* Enhanced Demo Button */}
+          <TouchableOpacity 
+            style={styles.demoButton}
+            onPress={() => setShowEnhancedDemo(true)}
+          >
+            <Text style={styles.demoButtonText}>
+              🚀 View Enhanced Visualization Demo
+            </Text>
+          </TouchableOpacity>
         </View>
 
         {/* Filter Buttons */}
@@ -211,6 +224,17 @@ export const ComparisonScreen: React.FC<ComparisonScreenProps> = ({
           </Text>
         </View>
       </View>
+
+      {/* Enhanced Demo Modal */}
+      <Modal
+        visible={showEnhancedDemo}
+        animationType="slide"
+        presentationStyle="fullScreen"
+      >
+        <EnhancedComparisonDemoScreen
+          onBackPress={() => setShowEnhancedDemo(false)}
+        />
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -378,5 +402,18 @@ const styles = StyleSheet.create({
     fontSize: FontSizes.small,
     color: Colors.textSecondary,
     textAlign: 'center',
+  },
+  demoButton: {
+    backgroundColor: Colors.primary,
+    borderRadius: BorderRadius.medium,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    marginTop: Spacing.sm,
+    alignItems: 'center',
+  },
+  demoButtonText: {
+    fontSize: FontSizes.medium,
+    color: Colors.white,
+    fontWeight: '600',
   },
 });

@@ -67,6 +67,75 @@ export interface ComparisonData {
   status: ConsumptionStatus;
 }
 
+// Enhanced Comparison Data Model for sophisticated visualization
+export interface EnhancedComparisonData {
+  substance: string;
+  category: 'macronutrient' | 'micronutrient' | 'harmful' | 'calorie';
+  consumed: number;
+  unit: string;
+  referenceValues: ReferenceValue[];
+  status: 'deficient' | 'optimal' | 'acceptable' | 'excess';
+  layers: ConsumptionLayer[];
+  educationalContent: EducationalContent;
+  visualConfig: VisualizationConfig;
+}
+
+// Reference Value Model for enhanced visualization
+export interface ReferenceValue {
+  type: 'recommended' | 'minimum' | 'maximum' | 'upper_limit';
+  value: number;
+  color: string;
+  label: string;
+  position: number; // percentage position on the bar
+}
+
+// Consumption Layer Model for layered progress bars
+export interface ConsumptionLayer {
+  value: number;
+  percentage: number;
+  color: string;
+  height: number; // 4px for main, 2px for reference
+  width: number; // calculated width based on percentage
+  borderRadius: number; // 10px for rounded ends
+}
+
+// Visualization Configuration
+export interface VisualizationConfig {
+  maxBarWidth: number; // maximum width in pixels
+  barSpacing: number; // vertical spacing between bars
+  indicatorSize: number; // 2px for circular indicators
+  animationDuration: number; // milliseconds
+}
+
+// Educational Content Model
+export interface EducationalContent {
+  healthImpact: string;
+  recommendedSources?: string[];
+  reductionTips?: string[];
+  safetyInformation?: string;
+  optimalRange?: string;
+}
+
+// Enhanced Comparison Data Model
+export interface EnhancedComparisonData {
+  substance: string;
+  category: 'macronutrient' | 'micronutrient' | 'harmful' | 'calorie';
+  consumed: number;
+  unit: string;
+  referenceValues: ReferenceValue[];
+  status: 'deficient' | 'optimal' | 'acceptable' | 'excess';
+  layers: ConsumptionLayer[];
+  educationalContent: EducationalContent;
+  visualConfig: VisualizationConfig;
+  dailyBreakdown?: {
+    dayNumber: number;
+    value: number;
+    status: 'deficient' | 'optimal' | 'acceptable' | 'excess';
+  }[];
+  weeklyAverage?: number;
+  dailyVariation?: number;
+}
+
 // Recommended Intake Model
 export interface RecommendedIntake {
   [substanceName: string]: number; // substance name -> recommended amount in grams

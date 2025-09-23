@@ -11,6 +11,8 @@ import { ConnectedComparisonScreen } from '../screens/ConnectedComparisonScreen'
 import { PastRecordsScreen } from '../screens/PastRecordsScreen';
 import { DayDetailScreen } from '../screens/DayDetailScreen';
 import { WeeklyReportScreen } from '../screens/WeeklyReportScreen';
+import { EnhancedComparisonDemoScreen } from '../screens/EnhancedComparisonDemoScreen';
+import { CategorizedComparisonScreen } from '../screens/CategorizedComparisonScreen';
 
 // Constants
 import { Colors, FontSizes } from '../constants/theme';
@@ -25,6 +27,8 @@ export type InputStackParamList = {
   FoodInput: undefined;
   Analysis: { foods: any[] };
   Comparison: { analysisResults: any[] };
+  EnhancedComparison: { analysisResults: any[] };
+  CategorizedComparison: { analysisResults: any[] };
 };
 
 export type RecordsStackParamList = {
@@ -122,6 +126,14 @@ const InputStackNavigator: React.FC = () => {
       <InputStack.Screen
         name="Comparison"
         component={ConnectedComparisonScreen}
+      />
+      <InputStack.Screen
+        name="EnhancedComparison"
+        component={EnhancedComparisonDemoScreen}
+      />
+      <InputStack.Screen
+        name="CategorizedComparison"
+        component={CategorizedComparisonScreen}
       />
     </InputStack.Navigator>
   );

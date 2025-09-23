@@ -12,6 +12,11 @@ import { FoodItem } from '../models/types';
 import { FoodInputRow } from '../components/FoodInputRow';
 import { Colors, Spacing, BorderRadius, FontSizes } from '../constants/theme';
 import { validateFoodItems, generateFoodId } from '../utils/validation';
+import { useErrorHandler } from '../hooks/useErrorHandler';
+import { useFormValidation } from '../hooks/useFormValidation';
+import { LoadingSpinner } from '../components/LoadingSpinner';
+import { ErrorMessage } from '../components/ErrorMessage';
+import { ValidationError } from '../utils/errorHandler';
 
 interface FoodInputScreenProps {
   onAnalyze: (foods: FoodItem[]) => void;
@@ -20,6 +25,8 @@ interface FoodInputScreenProps {
 export const FoodInputScreen: React.FC<FoodInputScreenProps> = ({
   onAnalyze,
 }) => {
+  const { error, isLoading, clearError, executeWithErrorHandling } = useErrorHandler();
+  
   const [foods, setFoods] = useState<FoodItem[]>([
     {
       id: generateFoodId(),
@@ -28,6 +35,8 @@ export const FoodInputScreen: React.FC<FoodInputScreenProps> = ({
       portion: '1/1',
     },
   ]);
+
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);
 
   const handleFoodChange = (index: number, updatedFood: FoodItem) => {
     const newFoods = [...foods];
@@ -52,32 +61,78 @@ export const FoodInputScreen: React.FC<FoodInputScreenProps> = ({
     }
   };
 
-  const handleAnalyze = () => {
+  const handleAnalyze = async () => {
+    // Clear previous errors
+    clearError();
+    setValidationErrors([]);
+
+    // Validate foods
     const validation = validateFoodItems(foods);
     
     if (!validation.isValid) {
-      Alert.alert(
-        'Validation Error',
-        validation.errors.join('\n'),
-        [{ text: 'OK' }]
-      );
+      setValidationErrors(validation.errors);
       return;
     }
 
-    onAnalyze(foods);
+    // Execute analysis with error handling
+    await executeWithErrorHandling(
+      async () => {
+        onAnalyze(foods);
+      },
+      {
+        loadingMessage: 'Analyzing your food...',
+        maxRetries: 2,
+      }
+    );
   };
 
   const isAnalyzeDisabled = () => {
-    return foods.some(food => !food.name.trim());
+    return foods.some(food => !food.name.trim()) || isLoading;
+  };
+
+  // Real-time validation for individual food items
+  const validateFoodItem = (food: FoodItem, index: number) => {
+    const errors: string[] = [];
+    
+    if (!food.name.trim()) {
+      errors.push(`Food item ${index + 1}: Name is required`);
+    } else if (food.name.trim().length < 2) {
+      errors.push(`Food item ${index + 1}: Name must be at least 2 characters`);
+    }
+    
+    return errors;
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} testID="food-input-container">
       <View style={styles.content}>
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.title}>What's your poison?</Text>
+          <Text style={styles.title} accessibilityRole="header" accessibilityLevel={1}>
+            What's your poison?
+          </Text>
         </View>
+
+        {/* Error Messages */}
+        {validationErrors.length > 0 && (
+          <ErrorMessage
+            message={validationErrors.join('\n')}
+            type="VALIDATION"
+            onDismiss={() => setValidationErrors([])}
+          />
+        )}
+
+        {error && (
+          <ErrorMessage
+            message={error.userMessage}
+            type={error.type}
+            onRetry={() => {
+              clearError();
+              handleAnalyze();
+            }}
+            onDismiss={clearError}
+          />
+        )}
 
         {/* Food Input List */}
         <ScrollView 
@@ -96,7 +151,16 @@ export const FoodInputScreen: React.FC<FoodInputScreenProps> = ({
           ))}
 
           {/* Add More Food Button */}
-          <TouchableOpacity style={styles.addButton} onPress={handleAddFood}>
+          <TouchableOpacity 
+            style={[styles.addButton, isLoading && styles.addButtonDisabled]} 
+            onPress={handleAddFood}
+            disabled={isLoading}
+            testID="add-food-button"
+            accessibilityLabel="Add food item"
+            accessibilityHint="Adds another food input row"
+            accessibilityRole="button"
+            accessibilityState={{ disabled: isLoading }}
+          >
             <Text style={styles.addButtonText}>+</Text>
           </TouchableOpacity>
         </ScrollView>
@@ -110,10 +174,27 @@ export const FoodInputScreen: React.FC<FoodInputScreenProps> = ({
             ]}
             onPress={handleAnalyze}
             disabled={isAnalyzeDisabled()}
+            testID="analyze-button"
+            accessibilityLabel="Analyze food items"
+            accessibilityHint="Analyzes the entered food items for nutritional content"
+            accessibilityRole="button"
+            accessibilityState={{ disabled: isAnalyzeDisabled() }}
           >
-            <Text style={styles.analyzeButtonText}>Analyse</Text>
+            {isLoading ? (
+              <LoadingSpinner size="small" message="" />
+            ) : (
+              <Text style={styles.analyzeButtonText}>Analyse</Text>
+            )}
           </TouchableOpacity>
         </View>
+
+        {/* Loading Overlay */}
+        {isLoading && (
+          <LoadingSpinner 
+            overlay 
+            message="Analyzing your food..." 
+          />
+        )}
       </View>
     </SafeAreaView>
   );
@@ -164,6 +245,9 @@ const styles = StyleSheet.create({
     fontSize: 24,
     color: Colors.inactive,
     fontWeight: 'bold',
+  },
+  addButtonDisabled: {
+    opacity: 0.5,
   },
   bottomSection: {
     paddingVertical: Spacing.md,

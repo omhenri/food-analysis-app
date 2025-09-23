@@ -11,9 +11,14 @@
     "dev": "./start-dev.sh",
     "ios:clean": "cd ios && rm -rf build && rm -rf Pods && rm Podfile.lock && pod install && cd ..",
     "clean": "rm -rf node_modules && npm install && npm run ios:clean",
-    "test": "jest"
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "test:ci": "jest --ci --coverage --watchAll=false"
   },
   "dependencies": {
+    "@react-native-async-storage/async-storage": "^2.2.0",
+    "@react-native-community/netinfo": "^11.4.1",
     "@react-native/new-app-screen": "0.81.4",
     "@react-navigation/bottom-tabs": "^7.4.7",
     "@react-navigation/native": "^7.1.17",
@@ -25,7 +30,8 @@
     "react-native-safe-area-context": "^5.6.1",
     "react-native-screens": "^4.16.0",
     "react-native-sqlite-storage": "^6.0.1",
-    "react-redux": "^9.2.0"
+    "react-redux": "^9.2.0",
+    "redux-persist": "^6.0.0"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
@@ -38,6 +44,8 @@
     "@react-native/eslint-config": "0.81.4",
     "@react-native/metro-config": "0.81.4",
     "@react-native/typescript-config": "0.81.4",
+    "@testing-library/jest-native": "^5.4.3",
+    "@testing-library/react-native": "^12.9.0",
     "@types/jest": "^29.5.13",
     "@types/react": "^19.1.0",
     "@types/react-test-renderer": "^19.1.0",

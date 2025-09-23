@@ -96,3 +96,6 @@ export const sanitizeFoodName = (name: string): string => {
 export const generateFoodId = (): string => {
   return `food_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 };
+
+// Generate unique ID (alias for generateFoodId)
+export const generateId = generateFoodId;

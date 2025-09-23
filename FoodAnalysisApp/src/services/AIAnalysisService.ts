@@ -1,4 +1,5 @@
 import { FoodItem, AnalysisResult, ChemicalSubstance, RecommendedIntake } from '../models/types';
+import { NetworkError, AIAnalysisError, RetryManager, NetworkStatus } from '../utils/errorHandler';
 
 // AI Analysis configuration
 const AI_API_ENDPOINT = 'https://api.openai.com/v1/chat/completions';
@@ -27,23 +28,55 @@ export class AIAnalysisService {
   // Analyze foods using AI
   public async analyzeFoods(foods: FoodItem[]): Promise<AnalysisResult[]> {
     if (!this.apiKey) {
-      throw new Error('AI API key not configured');
+      throw new AIAnalysisError('AI API key not configured');
+    }
+
+    // Check network status
+    if (!NetworkStatus.getOnlineStatus()) {
+      console.log('Offline mode: Using mock analysis results');
+      return this.getMockAnalysisResults(foods);
     }
 
     try {
       const analysisPrompt = this.formatFoodForAnalysis(foods);
-      const response = await this.makeAIRequest(analysisPrompt);
-      return this.parseAnalysisResponse(response, foods);
+      
+      return await RetryManager.withRetry(
+        async () => {
+          const response = await this.makeAIRequest(analysisPrompt);
+          return this.parseAnalysisResponse(response, foods);
+        },
+        MAX_RETRIES,
+        (error) => {
+          // Retry on network errors
+          const message = error.message.toLowerCase();
+          return message.includes('network') || 
+                 message.includes('fetch') || 
+                 message.includes('timeout');
+        }
+      );
     } catch (error) {
-      console.error('AI analysis failed:', error);
-      throw new Error(`AI analysis failed: ${error}`);
+      console.error('AI analysis failed, falling back to mock data:', error);
+      
+      // Fallback to mock data instead of throwing
+      if (error instanceof Error) {
+        throw new AIAnalysisError(`AI analysis failed: ${error.message}`, error);
+      }
+      
+      return this.getMockAnalysisResults(foods);
     }
   }
 
   // Get recommended daily intake for adults aged 18-29
   public async getRecommendedIntake(age: number = 25): Promise<RecommendedIntake> {
     if (!this.apiKey) {
-      throw new Error('AI API key not configured');
+      console.log('AI API key not configured, using default values');
+      return this.getDefaultRecommendedIntake();
+    }
+
+    // Check network status
+    if (!NetworkStatus.getOnlineStatus()) {
+      console.log('Offline mode: Using default recommended intake');
+      return this.getDefaultRecommendedIntake();
     }
 
     try {
@@ -52,10 +85,19 @@ export class AIAnalysisService {
       minerals (calcium, iron, magnesium, potassium, sodium, zinc), and other important substances.
       Return as JSON object with substance names as keys and recommended amounts in grams as values.`;
 
-      const response = await this.makeAIRequest(prompt);
-      return this.parseRecommendedIntakeResponse(response);
+      return await RetryManager.withRetry(
+        async () => {
+          const response = await this.makeAIRequest(prompt);
+          return this.parseRecommendedIntakeResponse(response);
+        },
+        2, // Fewer retries for this less critical operation
+        (error) => {
+          const message = error.message.toLowerCase();
+          return message.includes('network') || message.includes('fetch');
+        }
+      );
     } catch (error) {
-      console.error('Failed to get recommended intake:', error);
+      console.error('Failed to get recommended intake, using defaults:', error);
       // Return default values if AI fails
       return this.getDefaultRecommendedIntake();
     }
@@ -122,7 +164,15 @@ export class AIAnalysisService {
         });
 
         if (!response.ok) {
-          throw new Error(`AI API request failed: ${response.status} ${response.statusText}`);
+          if (response.status >= 500) {
+            throw new NetworkError(`Server error: ${response.status} ${response.statusText}`);
+          } else if (response.status === 429) {
+            throw new NetworkError('Rate limit exceeded. Please try again later.');
+          } else if (response.status === 401) {
+            throw new AIAnalysisError('Invalid API key');
+          } else {
+            throw new NetworkError(`AI API request failed: ${response.status} ${response.statusText}`);
+          }
         }
 
         const data = await response.json();
