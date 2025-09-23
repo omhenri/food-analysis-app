@@ -2,7 +2,8 @@ import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, TouchableOpacity } from 'react-native';
+import { FoodInputTabIcon, HistoricalTabIcon, LogoIcon } from '../components/TabIcon';
 
 // Screens
 import { ConnectedFoodInputScreen } from '../screens/ConnectedFoodInputScreen';
@@ -62,19 +63,16 @@ const CustomTabBar: React.FC<any> = ({ state, descriptors, navigation }) => {
             state.index === 0 && styles.tabButtonActive
           ]}
         >
-          <Text style={[
-            styles.tabIcon,
-            state.index === 0 ? { color: Colors.white } : { color: Colors.inactive }
-          ]}>
-            🍽️
-          </Text>
+          <FoodInputTabIcon
+            color={state.index === 0 ? Colors.white : Colors.inactive}
+          />
         </View>
       </TouchableOpacity>
 
       {/* Center Logo */}
       <View style={styles.logoContainer}>
         <View style={styles.logo}>
-          <Text style={styles.logoText}>FA</Text>
+          <LogoIcon color={Colors.white} />
         </View>
       </View>
 
@@ -90,12 +88,9 @@ const CustomTabBar: React.FC<any> = ({ state, descriptors, navigation }) => {
             state.index === 1 && styles.tabButtonActive
           ]}
         >
-          <Text style={[
-            styles.tabIcon,
-            state.index === 1 ? { color: Colors.white } : { color: Colors.inactive }
-          ]}>
-            📊
-          </Text>
+          <HistoricalTabIcon
+            color={state.index === 1 ? Colors.white : Colors.inactive}
+          />
         </View>
       </TouchableOpacity>
     </View>
@@ -210,9 +205,6 @@ const styles = StyleSheet.create({
   tabButtonActive: {
     backgroundColor: Colors.primary,
   },
-  tabIcon: {
-    fontSize: 24,
-  },
   logoContainer: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -224,11 +216,6 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  logoText: {
-    color: Colors.white,
-    fontSize: FontSizes.medium,
-    fontWeight: 'bold',
   },
   placeholderContainer: {
     flex: 1,
