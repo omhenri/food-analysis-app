@@ -1,0 +1,24 @@
+# Flask Configuration
+FLASK_ENV=development
+SECRET_KEY=your-secret-key-here
+
+# AI Provider Configuration (choose one)
+# Option 1: OpenAI Direct
+OPENAI_API_KEY=your-openai-api-key-here
+OPENAI_MODEL=gpt-4
+
+# Option 2: OpenRouter (unified API for multiple providers)
+OPENROUTER_API_KEY=your-openrouter-api-key-here
+OPENROUTER_MODEL=openai/gpt-4o-mini  # Cost-effective option
+# Alternative models: anthropic/claude-3-haiku, google/gemini-pro, etc.
+
+# Rate Limiting
+MAX_REQUESTS_PER_MINUTE=10
+
+# Logging
+LOG_LEVEL=INFO
+LOG_FILE=app.log
+
+# Server Configuration
+PORT=8000
+HOST=0.0.0.0

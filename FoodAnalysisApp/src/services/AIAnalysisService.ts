@@ -1,4 +1,5 @@
 import { FoodItem, AnalysisResult, ChemicalSubstance, RecommendedIntake } from '../models/types';
+import { BackendApiService, FoodItem as BackendFoodItem, BackendApiError } from './BackendApiService';
 
 // AI Analysis configuration
 const AI_API_ENDPOINT = 'https://api.openai.com/v1/chat/completions';
@@ -9,8 +10,12 @@ const RETRY_DELAY = 1000; // 1 second
 export class AIAnalysisService {
   private static instance: AIAnalysisService;
   private apiKey: string | null = null;
+  private backendService: BackendApiService;
+  private useBackend: boolean = true; // Default to backend integration
 
-  private constructor() {}
+  private constructor() {
+    this.backendService = BackendApiService.getInstance();
+  }
 
   public static getInstance(): AIAnalysisService {
     if (!AIAnalysisService.instance) {
@@ -24,24 +29,112 @@ export class AIAnalysisService {
     this.apiKey = apiKey;
   }
 
-  // Analyze foods using AI
+  // Configure backend usage
+  public setUseBackend(useBackend: boolean): void {
+    this.useBackend = useBackend;
+  }
+
+  // Configure backend URL (for development/testing)
+  public configureBackend(baseUrl?: string, timeout?: number): void {
+    this.backendService.configure(baseUrl, timeout);
+  }
+
+  // Analyze foods using AI (via backend or direct API)
   public async analyzeFoods(foods: FoodItem[]): Promise<AnalysisResult[]> {
+    if (this.useBackend) {
+      return this.analyzeFoodsViaBackend(foods);
+    } else {
+      return this.analyzeFoodsDirectly(foods);
+    }
+  }
+
+  // Analyze foods via backend service
+  private async analyzeFoodsViaBackend(foods: FoodItem[]): Promise<AnalysisResult[]> {
+    try {
+      console.log('Analyzing foods via backend service...');
+      
+      // Convert app's FoodItem format to backend format
+      const backendFoods: BackendFoodItem[] = foods.map(food => ({
+        name: food.name,
+        mealType: food.mealType,
+        portion: food.portion,
+        quantity: 1, // Default quantity
+        unit: 'serving', // Default unit
+      }));
+
+      // Make request to backend
+      const backendResponse = await this.backendService.analyzeFoods(backendFoods);
+      
+      if (!backendResponse.success) {
+        throw new Error(backendResponse.error || 'Backend analysis failed');
+      }
+
+      // Convert backend response to app format
+      const analysisResults = this.backendService.convertToAnalysisResults(backendResponse);
+      
+      console.log('Backend analysis completed successfully:', analysisResults);
+      return analysisResults;
+    } catch (error) {
+      console.error('Backend analysis failed:', error);
+      
+      if (error instanceof BackendApiError) {
+        // Handle specific backend errors
+        if (error.statusCode === 408 || error.errorCode === 'TIMEOUT') {
+          throw new Error('Analysis request timed out. Please try again.');
+        } else if (error.statusCode && error.statusCode >= 500) {
+          throw new Error('Backend service is temporarily unavailable. Please try again later.');
+        } else {
+          throw new Error(`Analysis failed: ${error.message}`);
+        }
+      }
+      
+      throw new Error(`Analysis failed: ${error}`);
+    }
+  }
+
+  // Analyze foods directly via AI API (fallback method)
+  private async analyzeFoodsDirectly(foods: FoodItem[]): Promise<AnalysisResult[]> {
     if (!this.apiKey) {
       throw new Error('AI API key not configured');
     }
 
     try {
+      console.log('Analyzing foods directly via AI API...');
       const analysisPrompt = this.formatFoodForAnalysis(foods);
       const response = await this.makeAIRequest(analysisPrompt);
       return this.parseAnalysisResponse(response, foods);
     } catch (error) {
-      console.error('AI analysis failed:', error);
+      console.error('Direct AI analysis failed:', error);
       throw new Error(`AI analysis failed: ${error}`);
     }
   }
 
   // Get recommended daily intake for adults aged 18-29
-  public async getRecommendedIntake(age: number = 25): Promise<RecommendedIntake> {
+  public async getRecommendedIntake(age: number = 25, gender: 'male' | 'female' = 'male'): Promise<RecommendedIntake> {
+    if (this.useBackend) {
+      return this.getRecommendedIntakeViaBackend(age, gender);
+    } else {
+      return this.getRecommendedIntakeDirectly(age);
+    }
+  }
+
+  // Get recommended intake via backend
+  private async getRecommendedIntakeViaBackend(age: number, gender: 'male' | 'female'): Promise<RecommendedIntake> {
+    try {
+      console.log('Getting recommended intake via backend...');
+      const backendData = await this.backendService.getRecommendedIntake(age, gender);
+      
+      // Convert backend format to app format
+      return this.convertBackendRecommendedIntake(backendData);
+    } catch (error) {
+      console.error('Backend recommended intake request failed:', error);
+      // Fallback to direct AI call or default values
+      return this.getRecommendedIntakeDirectly(age);
+    }
+  }
+
+  // Get recommended intake directly via AI (fallback)
+  private async getRecommendedIntakeDirectly(age: number): Promise<RecommendedIntake> {
     if (!this.apiKey) {
       throw new Error('AI API key not configured');
     }
@@ -257,8 +350,34 @@ export class AIAnalysisService {
     }));
   }
 
-  // Test connection to AI service
+  // Convert backend recommended intake to app format
+  private convertBackendRecommendedIntake(backendData: any): RecommendedIntake {
+    return {
+      protein: backendData.protein || 50,
+      carbohydrates: backendData.carbohydrates || 300,
+      fat: backendData.fat || 65,
+      fiber: backendData.fiber || 25,
+      sugar: backendData.sugar || 50,
+      sodium: backendData.sodium || 2.3,
+      calcium: backendData.calcium || 1,
+      iron: backendData.iron || 0.018,
+      'vitamin-c': backendData['vitamin-c'] || backendData.vitaminC || 0.09,
+      'vitamin-d': backendData['vitamin-d'] || backendData.vitaminD || 0.00002,
+      potassium: backendData.potassium || 3.5,
+      magnesium: backendData.magnesium || 0.4,
+    };
+  }
+
+  // Test connection to backend or AI service
   public async testConnection(): Promise<boolean> {
+    if (this.useBackend) {
+      try {
+        return await this.backendService.testConnection();
+      } catch (error) {
+        console.error('Backend connection test failed:', error);
+        return false;
+      }
+    }
     if (!this.apiKey) {
       return false;
     }

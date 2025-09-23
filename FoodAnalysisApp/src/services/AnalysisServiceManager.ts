@@ -5,7 +5,9 @@ import { MockAIService } from './MockAIService';
 // Configuration for analysis service
 interface AnalysisConfig {
   useMockService: boolean;
+  useBackend: boolean;
   apiKey?: string;
+  backendUrl?: string;
 }
 
 export class AnalysisServiceManager {
@@ -16,10 +18,18 @@ export class AnalysisServiceManager {
 
   private constructor() {
     this.config = {
-      useMockService: true, // Default to mock for development
+      useMockService: false, // Default to backend integration
+      useBackend: true, // Use backend by default
+      backendUrl: __DEV__ ? 'http://localhost:8000' : 'https://your-production-backend.com/api',
     };
     this.aiService = AIAnalysisService.getInstance();
     this.mockService = MockAIService.getInstance();
+    
+    // Configure AI service to use backend
+    this.aiService.setUseBackend(this.config.useBackend);
+    if (this.config.backendUrl) {
+      this.aiService.configureBackend(this.config.backendUrl);
+    }
   }
 
   public static getInstance(): AnalysisServiceManager {
@@ -36,6 +46,39 @@ export class AnalysisServiceManager {
     if (config.apiKey && !config.useMockService) {
       this.aiService.setApiKey(config.apiKey);
     }
+    
+    if (config.useBackend !== undefined) {
+      this.aiService.setUseBackend(config.useBackend);
+    }
+    
+    if (config.backendUrl) {
+      this.aiService.configureBackend(config.backendUrl);
+    }
+  }
+
+  // Enable backend integration
+  public enableBackendService(backendUrl?: string): void {
+    this.config.useMockService = false;
+    this.config.useBackend = true;
+    
+    if (backendUrl) {
+      this.config.backendUrl = backendUrl;
+      this.aiService.configureBackend(backendUrl);
+    }
+    
+    this.aiService.setUseBackend(true);
+    console.log('Backend service enabled');
+  }
+
+  // Enable direct AI service (bypass backend)
+  public enableDirectAIService(apiKey: string): void {
+    this.config.useMockService = false;
+    this.config.useBackend = false;
+    this.config.apiKey = apiKey;
+    
+    this.aiService.setApiKey(apiKey);
+    this.aiService.setUseBackend(false);
+    console.log('Direct AI service enabled');
   }
 
   // Get current service instance
@@ -47,7 +90,13 @@ export class AnalysisServiceManager {
   public async analyzeFoods(foods: FoodItem[]): Promise<AnalysisResult[]> {
     try {
       const service = this.getCurrentService();
-      console.log(`Using ${this.config.useMockService ? 'Mock' : 'AI'} service for analysis`);
+      const serviceType = this.config.useMockService 
+        ? 'Mock' 
+        : this.config.useBackend 
+          ? 'Backend AI' 
+          : 'Direct AI';
+      
+      console.log(`Using ${serviceType} service for analysis`);
       
       const results = await service.analyzeFoods(foods);
       console.log('Analysis completed successfully');
@@ -56,7 +105,7 @@ export class AnalysisServiceManager {
     } catch (error) {
       console.error('Analysis failed:', error);
       
-      // Fallback to mock service if AI fails
+      // Fallback to mock service if AI/Backend fails
       if (!this.config.useMockService) {
         console.log('Falling back to mock service');
         try {
