@@ -4,7 +4,7 @@ export const API_CONFIG = {
   // Backend API Configuration
   BACKEND: {
     // Development backend (local)
-    DEV_URL: 'http://localhost:3000/api',
+    DEV_URL: 'http://localhost:8000/api',
     
     // Production backend (replace with your actual production URL)
     PROD_URL: 'https://your-food-backend.herokuapp.com/api',
@@ -14,8 +14,8 @@ export const API_CONFIG = {
       return __DEV__ ? this.DEV_URL : this.PROD_URL;
     },
     
-    // Request timeout (30 seconds for AI processing)
-    TIMEOUT: 30000,
+    // Request timeout (2 minutes for AI processing)
+    TIMEOUT: 120000,
     
     // Retry configuration
     RETRY_ATTEMPTS: 3,
@@ -67,7 +67,7 @@ export const getApiConfig = () => {
   if (__DEV__) {
     // Development overrides
     config.BACKEND.TIMEOUT = 60000; // Longer timeout for development
-    config.FEATURES.USE_MOCK_IN_DEV = true; // Enable mock for easier development
+    // config.FEATURES.USE_MOCK_IN_DEV = true; // Disabled to use real backend
   }
   
   return config;

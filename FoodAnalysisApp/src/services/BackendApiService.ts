@@ -128,25 +128,91 @@ export class BackendApiService {
    * Main method to analyze foods using AI backend
    */
   async analyzeFoods(foods: FoodItem[]): Promise<BackendAnalysisResponse> {
-    const request: FoodAnalysisRequest = {
-      foods,
-      analysisType: 'detailed',
-      sessionId: this.generateSessionId(),
-    };
-
     try {
-      console.log('Sending food analysis request to backend:', request);
-      
-      const response = await this.makeRequest<BackendAnalysisResponse>(
-        ENDPOINTS.ANALYZE_FOODS,
+      console.log('Analyzing foods via backend batch processing:', foods.length, 'items');
+
+      // Prepare batch request with all foods
+      const batchRequest = {
+        foods: foods.map(food => ({
+          food_name: food.name,
+          meal_type: food.mealType,
+          id: food.id || 'unknown'
+        }))
+      };
+
+      console.log('Sending batch analysis request to backend');
+
+      const response = await this.makeRequest<any>(
+        '/analyze-foods', // Use the new batch endpoint
         'POST',
-        request
+        batchRequest
       );
 
-      console.log('Received analysis response from backend:', response);
-      return response;
+      console.log('Received batch analysis response from backend');
+
+      // Transform the batch response to the expected format
+      const results: any[] = [];
+
+      if (response.results && Array.isArray(response.results)) {
+        for (let i = 0; i < response.results.length; i++) {
+          const result = response.results[i];
+          const originalFood = foods[i];
+
+          results.push({
+            foodId: result.food_id || originalFood.id || 'unknown',
+            foodName: result.food_name || originalFood.name,
+            mealType: result.meal_type || originalFood.mealType,
+            portion: originalFood.portion || '1 serving',
+            ingredients: (result.ingredients || []).map((ing: any) => ({
+              name: ing.name || 'Unknown',
+              percentage: 100 / (result.ingredients?.length || 1),
+              category: 'primary' as const,
+              description: ing.quantity || 'N/A',
+              associatedChemicals: []
+            })),
+            chemicalSubstances: (result.substances || []).map((sub: any) => ({
+              name: sub.name || 'Unknown',
+              category: sub.category || 'neutral',
+              amount: sub.quantity || 0,
+              unit: sub.unit || 'N/A',
+              sourceIngredients: (sub.source_contributions || []).map((contrib: any) => contrib.ingredient_name).filter(Boolean),
+              healthImpact: sub.health_impact || 'neutral',
+              description: `Contributes ${sub.quantity || 0}${sub.unit || ''} (${sub.category || 'unknown'})`
+            })),
+            nutritionalInfo: {
+              calories: 0,
+              protein: 0,
+              carbs: 0,
+              fat: 0,
+              fiber: 0,
+              sugar: 0,
+              sodium: 0,
+              vitamins: [],
+              minerals: []
+            },
+            confidence: 0.8 // Higher confidence for detailed batch analysis
+          });
+        }
+      }
+
+      console.log('Batch analysis completed successfully:', results.length, 'results');
+      return {
+        success: true,
+        data: {
+          analysisId: this.generateSessionId(),
+          foods: results,
+          summary: {
+            totalFoods: results.length,
+            totalIngredients: results.reduce((sum, food) => sum + food.ingredients.length, 0),
+            totalSubstances: results.reduce((sum, food) => sum + food.chemicalSubstances.length, 0),
+            riskLevel: 'unknown' as const,
+            recommendations: []
+          },
+          timestamp: new Date().toISOString()
+        }
+      };
     } catch (error) {
-      console.error('Food analysis request failed:', error);
+      console.error('Batch food analysis failed:', error);
       throw error;
     }
   }

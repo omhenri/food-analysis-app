@@ -12,6 +12,7 @@ import { ConnectedComparisonScreen } from '../screens/ConnectedComparisonScreen'
 import { PastRecordsScreen } from '../screens/PastRecordsScreen';
 import { DayDetailScreen } from '../screens/DayDetailScreen';
 import { WeeklyReportScreen } from '../screens/WeeklyReportScreen';
+import { DebugScreen } from '../screens/DebugScreen';
 
 // Constants
 import { Colors, FontSizes } from '../constants/theme';
@@ -32,6 +33,7 @@ export type RecordsStackParamList = {
   PastRecords: undefined;
   DayDetail: { day: any };
   WeeklyReport: { weekId: number };
+  Debug: undefined;
 };
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
@@ -142,6 +144,10 @@ const RecordsStackNavigator: React.FC = () => {
       <RecordsStack.Screen
         name="WeeklyReport"
         component={WeeklyReportScreen}
+      />
+      <RecordsStack.Screen
+        name="Debug"
+        component={DebugScreen}
       />
     </RecordsStack.Navigator>
   );

@@ -349,6 +349,96 @@ def analyze_meal():
         }), 500
 
 
+@api_bp.route('/analyze-foods', methods=['POST'])
+def analyze_foods():
+    """
+    Analyze multiple foods in a single AI prompt for detailed analysis
+    Expects: {"foods": [{"food_name": "string", "meal_type": "breakfast|lunch|dinner|snack", "id": "string"}]}
+    Returns: {"results": [{"food_id": "string", "food_name": "string", "meal_type": "string", "ingredients": [...], "substances": [...]}]}
+    """
+    try:
+        # Get client IP for rate limiting
+        client_ip = request.remote_addr or request.environ.get('HTTP_X_FORWARDED_FOR', 'unknown')
+
+        # Check rate limit
+        if not rate_limiter.is_allowed(client_ip):
+            logger.warning(f"Rate limit exceeded for IP: {client_ip}")
+            return jsonify({
+                'error': 'Rate limit exceeded. Please try again later.',
+                'code': 'RATE_LIMIT_EXCEEDED'
+            }), 429
+
+        # Get and validate input
+        data = request.get_json()
+
+        if not data or 'foods' not in data:
+            return jsonify({
+                'error': 'Missing required field: foods',
+                'code': 'MISSING_FIELD'
+            }), 400
+
+        foods = data['foods']
+        if not isinstance(foods, list) or len(foods) == 0:
+            return jsonify({
+                'error': 'Foods must be a non-empty array',
+                'code': 'INVALID_FIELD_TYPE'
+            }), 400
+
+        # Validate each food item
+        for i, food in enumerate(foods):
+            if not isinstance(food, dict):
+                return jsonify({
+                    'error': f'Food item at index {i} must be an object',
+                    'code': 'INVALID_FOOD_ITEM'
+                }), 400
+
+            required_fields = ['food_name', 'meal_type', 'id']
+            for field in required_fields:
+                if field not in food:
+                    return jsonify({
+                        'error': f'Missing required field "{field}" in food item at index {i}',
+                        'code': 'MISSING_FIELD'
+                    }), 400
+
+            # Validate food name
+            food_name = food['food_name'].strip()
+            if not food_name or len(food_name) < 2:
+                return jsonify({
+                    'error': f'Food name at index {i} must be at least 2 characters long',
+                    'code': 'INVALID_FOOD_NAME'
+                }), 400
+
+            # Validate meal type
+            valid_meal_types = ['breakfast', 'lunch', 'dinner', 'snack']
+            meal_type = food['meal_type'].strip()
+            if meal_type not in valid_meal_types:
+                return jsonify({
+                    'error': f'Meal type at index {i} must be one of: {", ".join(valid_meal_types)}',
+                    'code': 'INVALID_MEAL_TYPE'
+                }), 400
+
+        # Log the request
+        logger.info(f"Batch food analysis request: {len(foods)} foods from IP: {client_ip}")
+
+        # Analyze all foods in a single prompt
+        result = food_analyzer.analyze_foods_batch(foods)
+
+        # Update rate limiter
+        rate_limiter.record_request(client_ip)
+
+        # Log success
+        logger.info(f"Batch food analysis completed: {len(result.get('results', []))} results")
+
+        return jsonify(result)
+
+    except Exception as e:
+        logger.error(f"Error in batch food analysis endpoint: {str(e)}")
+        return jsonify({
+            'error': 'Internal server error. Please try again later.',
+            'code': 'INTERNAL_ERROR'
+        }), 500
+
+
 @api_bp.route('/health', methods=['GET'])
 def health():
     """Health check endpoint"""

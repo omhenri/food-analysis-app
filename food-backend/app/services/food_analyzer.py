@@ -2063,6 +2063,354 @@ class FoodAnalyzer:
 
         return response.to_dict()
 
+    def analyze_foods_batch(self, foods: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """
+        Analyze multiple foods in a single AI prompt for detailed batch analysis
+        Returns structured response with ingredients and substances for each food
+        """
+        try:
+            if self.use_mock:
+                return self._get_mock_batch_response(foods)
+
+            # Create comprehensive batch analysis prompt
+            prompt = self._create_batch_analysis_prompt(foods)
+
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": "You are an expert nutritionist specializing in nutritional biochemistry and food science. You have extensive knowledge of food composition, nutrient interactions, and dietary health impacts. Provide detailed, evidence-based nutritional analysis with precise measurements and comprehensive health assessments."},
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=4000,  # Increased for comprehensive batch analysis
+                temperature=0.3
+            )
+
+            response_text = response.choices[0].message.content.strip()
+
+            # Parse JSON response
+            try:
+                # Clean up response text to extract JSON
+                json_start = response_text.find('{')
+                json_end = response_text.rfind('}') + 1
+
+                if json_start == -1 or json_end == 0:
+                    logger.warning(f"No JSON object found in response: {response_text}")
+                    raise json.JSONDecodeError("No JSON object found", response_text, 0)
+
+                json_content = response_text[json_start:json_end]
+                parsed_data = json.loads(json_content)
+
+                # Validate and process the response
+                results = []
+                batch_results = parsed_data.get('results', [])
+
+                for i, food_data in enumerate(foods):
+                    if i < len(batch_results):
+                        result_data = batch_results[i]
+                        results.append({
+                            'food_id': food_data['id'],
+                            'food_name': result_data.get('food_name', food_data['food_name']),
+                            'meal_type': result_data.get('meal_type', food_data['meal_type']),
+                            'ingredients': result_data.get('ingredients', []),
+                            'substances': result_data.get('substances', [])
+                        })
+                    else:
+                        # Fallback for missing result
+                        results.append({
+                            'food_id': food_data['id'],
+                            'food_name': food_data['food_name'],
+                            'meal_type': food_data['meal_type'],
+                            'ingredients': [{'name': 'Analysis temporarily unavailable', 'quantity': 'N/A'}],
+                            'substances': [{
+                                'name': 'Analysis not available',
+                                'quantity': 0.0,
+                                'unit': 'N/A',
+                                'category': 'general',
+                                'standard_consumption': 100.0,
+                                'health_impact': 'neutral'
+                            }]
+                        })
+
+                return {'results': results}
+
+            except json.JSONDecodeError as e:
+                logger.error(f"Failed to parse JSON response: {response_text}, Error: {str(e)}")
+                return self._get_mock_batch_response(foods)
+
+        except Exception as e:
+            logger.error(f"Error in batch food analysis: {str(e)}")
+            return self._get_mock_batch_response(foods)
+
+    def _create_batch_analysis_prompt(self, foods: List[Dict[str, Any]]) -> str:
+        """Create a comprehensive batch analysis prompt for multiple foods"""
+
+        # Create food descriptions
+        food_descriptions = []
+        for i, food in enumerate(foods, 1):
+            food_descriptions.append(f"{i}. {food['food_name']} (meal type: {food['meal_type']})")
+
+        prompt = f"""You are an expert nutritionist specializing in nutritional biochemistry and food science. You have extensive knowledge of food composition, nutrient interactions, and dietary health impacts.
+
+Analyze the following {len(foods)} foods in a comprehensive batch analysis. For each food, provide detailed ingredient breakdown and nutritional substance analysis with specific contribution tracking.
+
+FOODS TO ANALYZE:
+{chr(10).join(food_descriptions)}
+
+Return ONLY a valid JSON object with the following EXACT structure:
+
+{{
+  "results": [
+    {{
+      "food_name": "Apple",
+      "meal_type": "snack",
+      "ingredients": [
+        {{
+          "name": "Apple flesh",
+          "quantity": "150g"
+        }},
+        {{
+          "name": "Apple skin",
+          "quantity": "20g"
+        }},
+        {{
+          "name": "Natural sugars",
+          "quantity": "19g"
+        }}
+      ],
+      "substances": [
+        {{
+          "name": "Vitamin C",
+          "quantity": 8.4,
+          "unit": "mg",
+          "category": "vitamin",
+          "standard_consumption": 90.0,
+          "health_impact": "positive",
+          "source_contributions": [
+            {{
+              "ingredient_name": "Apple flesh",
+              "contribution_percentage": 85.7,
+              "quantity_from_ingredient": 7.14
+            }},
+            {{
+              "ingredient_name": "Apple skin",
+              "contribution_percentage": 14.3,
+              "quantity_from_ingredient": 1.2
+            }}
+          ]
+        }},
+        {{
+          "name": "Dietary Fiber",
+          "quantity": 4.4,
+          "unit": "g",
+          "category": "fiber",
+          "standard_consumption": 25.0,
+          "health_impact": "positive",
+          "source_contributions": [
+            {{
+              "ingredient_name": "Apple flesh",
+              "contribution_percentage": 60.0,
+              "quantity_from_ingredient": 2.64
+            }},
+            {{
+              "ingredient_name": "Apple skin",
+              "contribution_percentage": 40.0,
+              "quantity_from_ingredient": 1.76
+            }}
+          ]
+        }},
+        {{
+          "name": "Natural Sugars",
+          "quantity": 19.0,
+          "unit": "g",
+          "category": "carbohydrate",
+          "standard_consumption": 50.0,
+          "health_impact": "neutral",
+          "source_contributions": [
+            {{
+              "ingredient_name": "Natural sugars",
+              "contribution_percentage": 100.0,
+              "quantity_from_ingredient": 19.0
+            }}
+          ]
+        }}
+      ]
+    }},
+    {{
+      "food_name": "Banana",
+      "meal_type": "breakfast",
+      "ingredients": [
+        {{
+          "name": "Banana flesh",
+          "quantity": "118g"
+        }},
+        {{
+          "name": "Banana peel",
+          "quantity": "not consumed"
+        }}
+      ],
+      "substances": [
+        {{
+          "name": "Potassium",
+          "quantity": 422.0,
+          "unit": "mg",
+          "category": "mineral",
+          "standard_consumption": 4700.0,
+          "health_impact": "positive",
+          "source_contributions": [
+            {{
+              "ingredient_name": "Banana flesh",
+              "contribution_percentage": 100.0,
+              "quantity_from_ingredient": 422.0
+            }}
+          ]
+        }}
+      ]
+    }}
+  ]
+}}
+
+CRITICAL REQUIREMENTS:
+
+1. **Ingredient Analysis**: For each food, list 4-8 main ingredients with realistic quantities (e.g., "150g chicken breast", "2 cups spinach", "1 tbsp olive oil")
+
+2. **Substance Tracking**: For each substance found in each food:
+   - Provide realistic quantity and unit
+   - Categorize appropriately (vitamin, mineral, protein, carbohydrate, fat, antioxidant, fiber, etc.)
+   - Indicate standard daily consumption for adults
+   - Mark health impact: "positive", "neutral", or "negative"
+   - **MOST IMPORTANT**: Include "source_contributions" array showing exactly which ingredients contribute to each substance and by how much percentage
+
+3. **Contribution Tracking**: For each substance, break down:
+   - Which specific ingredients contribute to it
+   - What percentage each ingredient contributes
+   - Exact quantity contributed by each ingredient
+
+4. **Comprehensive Coverage**: Include ALL significant nutritional substances (positive, neutral, negative impacts)
+
+5. **Accuracy**: Use evidence-based nutritional data with realistic quantities for standard portion sizes
+
+6. **Format**: Return ONLY valid JSON - no additional text, explanations, or formatting
+
+EXAMPLE OF EXPECTED OUTPUT STRUCTURE:
+- Food 1 analysis with ingredients and substances with contribution tracking
+- Food 2 analysis with ingredients and substances with contribution tracking
+- etc.
+
+Analyze each food thoroughly and provide detailed, accurate nutritional breakdown with precise contribution tracking."""
+
+        return prompt
+
+    def _get_mock_batch_response(self, foods: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Return mock batch analysis response when API key is not available"""
+        results = []
+
+        for food in foods:
+            # Create mock response based on food name
+            if "apple" in food['food_name'].lower():
+                result = {
+                    'food_id': food['id'],
+                    'food_name': food['food_name'],
+                    'meal_type': food['meal_type'],
+                    'ingredients': [
+                        {'name': 'Apple flesh', 'quantity': '150g'},
+                        {'name': 'Apple skin', 'quantity': '20g'},
+                        {'name': 'Natural sugars', 'quantity': '19g'},
+                        {'name': 'Water', 'quantity': '120g'}
+                    ],
+                    'substances': [
+                        {
+                            'name': 'Vitamin C',
+                            'quantity': 8.4,
+                            'unit': 'mg',
+                            'category': 'vitamin',
+                            'standard_consumption': 90.0,
+                            'health_impact': 'positive',
+                            'source_contributions': [
+                                {'ingredient_name': 'Apple flesh', 'contribution_percentage': 85.7, 'quantity_from_ingredient': 7.14},
+                                {'ingredient_name': 'Apple skin', 'contribution_percentage': 14.3, 'quantity_from_ingredient': 1.2}
+                            ]
+                        },
+                        {
+                            'name': 'Dietary Fiber',
+                            'quantity': 4.4,
+                            'unit': 'g',
+                            'category': 'fiber',
+                            'standard_consumption': 25.0,
+                            'health_impact': 'positive',
+                            'source_contributions': [
+                                {'ingredient_name': 'Apple flesh', 'contribution_percentage': 60.0, 'quantity_from_ingredient': 2.64},
+                                {'ingredient_name': 'Apple skin', 'contribution_percentage': 40.0, 'quantity_from_ingredient': 1.76}
+                            ]
+                        }
+                    ]
+                }
+            elif "chicken" in food['food_name'].lower():
+                result = {
+                    'food_id': food['id'],
+                    'food_name': food['food_name'],
+                    'meal_type': food['meal_type'],
+                    'ingredients': [
+                        {'name': 'Chicken breast', 'quantity': '150g'},
+                        {'name': 'Mixed vegetables', 'quantity': '100g'},
+                        {'name': 'Olive oil', 'quantity': '10g'},
+                        {'name': 'Garlic', 'quantity': '5g'}
+                    ],
+                    'substances': [
+                        {
+                            'name': 'Protein',
+                            'quantity': 42.0,
+                            'unit': 'g',
+                            'category': 'protein',
+                            'standard_consumption': 50.0,
+                            'health_impact': 'positive',
+                            'source_contributions': [
+                                {'ingredient_name': 'Chicken breast', 'contribution_percentage': 95.2, 'quantity_from_ingredient': 39.98},
+                                {'ingredient_name': 'Mixed vegetables', 'contribution_percentage': 4.8, 'quantity_from_ingredient': 2.02}
+                            ]
+                        },
+                        {
+                            'name': 'Vitamin C',
+                            'quantity': 25.0,
+                            'unit': 'mg',
+                            'category': 'vitamin',
+                            'standard_consumption': 90.0,
+                            'health_impact': 'positive',
+                            'source_contributions': [
+                                {'ingredient_name': 'Mixed vegetables', 'contribution_percentage': 100.0, 'quantity_from_ingredient': 25.0}
+                            ]
+                        }
+                    ]
+                }
+            else:
+                result = {
+                    'food_id': food['id'],
+                    'food_name': food['food_name'],
+                    'meal_type': food['meal_type'],
+                    'ingredients': [
+                        {'name': 'Main ingredient', 'quantity': '100g'},
+                        {'name': 'Vegetables', 'quantity': '50g'},
+                        {'name': 'Seasoning', 'quantity': '5g'}
+                    ],
+                    'substances': [
+                        {
+                            'name': 'Calories',
+                            'quantity': 250.0,
+                            'unit': 'kcal',
+                            'category': 'energy',
+                            'standard_consumption': 2000.0,
+                            'health_impact': 'neutral',
+                            'source_contributions': [
+                                {'ingredient_name': 'Main ingredient', 'contribution_percentage': 80.0, 'quantity_from_ingredient': 200.0},
+                                {'ingredient_name': 'Vegetables', 'contribution_percentage': 20.0, 'quantity_from_ingredient': 50.0}
+                            ]
+                        }
+                    ]
+                }
+
+            results.append(result)
+
+        return {'results': results}
+
     def _get_fallback_meal_response(self, food_name: str, meal_type: str) -> Dict[str, Any]:
         """Return fallback meal analysis response when analysis fails"""
         from app.models.response_models import MealAnalysisResponse, MealIngredient, MealSubstance

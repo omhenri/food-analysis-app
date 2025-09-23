@@ -10,9 +10,9 @@ function App(): React.JSX.Element {
     // Initialize services
     const initializeApp = async () => {
       try {
-        // Configure analysis service (using mock for development)
+        // Configure analysis service (using backend for development)
         const analysisService = AnalysisServiceManager.getInstance();
-        analysisService.enableMockService();
+        analysisService.enableBackendService('http://localhost:8000/api');
         
         // Initialize database
         const { DatabaseService } = await import('./src/services/DatabaseService');
