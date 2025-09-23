@@ -13,6 +13,7 @@ import { ComparisonData, AnalysisResult } from '../models/types';
 import { ComparisonCard } from '../components/ComparisonCard';
 import { Colors, Spacing, BorderRadius, FontSizes } from '../constants/theme';
 import { useAnalysisData } from '../hooks/useAnalysisData';
+import { MultiLineProgressBar, createNutritionComparisonData } from '../components/MultiLineProgressBar';
 
 interface ComparisonScreenProps {
   analysisResults?: AnalysisResult[];

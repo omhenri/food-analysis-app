@@ -14,6 +14,7 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { Day, Week, FoodEntry } from '../models/types';
 import { Colors, Spacing, FontSizes, BorderRadius } from '../constants/theme';
 import { DatabaseService } from '../services/DatabaseService';
+import { MultiLineProgressBar, createNutritionComparisonData } from '../components/MultiLineProgressBar';
 
 type RecordsStackParamList = {
   PastRecords: undefined;
@@ -329,68 +330,21 @@ export const PastRecordsScreen: React.FC = () => {
   };
 
   const renderProgressBar = (metric: NutritionMetric) => {
-    const maxValue = Math.max(metric.value, metric.maleRecommended, metric.femaleRecommended);
-    
-    const userPercentage = (metric.value / maxValue) * 100;
-    const malePercentage = (metric.maleRecommended / maxValue) * 100;
-    const femalePercentage = (metric.femaleRecommended / maxValue) * 100;
+    const progressData = createNutritionComparisonData(
+      metric.value,
+      metric.maleRecommended,
+      metric.femaleRecommended,
+      metric.unit
+    );
 
     return (
-      <View style={styles.progressBarContainer}>
-        {/* First line - Male recommendation (Blue) */}
-        <View style={styles.progressLineContainer}>
-          <View style={styles.progressLineBackground}>
-            <View
-              style={[
-                styles.progressLine,
-                {
-                  width: `${Math.min(malePercentage, 100)}%`,
-                  backgroundColor: RevampedColors.maleRecommended,
-                },
-              ]}
-            />
-          </View>
-          <Text style={[styles.lineLabel, { color: RevampedColors.maleRecommended }]}>
-            ♂{metric.maleRecommended}
-          </Text>
-        </View>
-
-        {/* Second line - User actual consumption (Teal) */}
-        <View style={styles.progressLineContainer}>
-          <View style={styles.progressLineBackground}>
-            <View
-              style={[
-                styles.progressLine,
-                {
-                  width: `${Math.min(userPercentage, 100)}%`,
-                  backgroundColor: RevampedColors.userActual,
-                },
-              ]}
-            />
-          </View>
-          <Text style={[styles.lineLabel, { color: RevampedColors.userActual }]}>
-            {metric.value}
-          </Text>
-        </View>
-
-        {/* Third line - Female recommendation (Pink) */}
-        <View style={styles.progressLineContainer}>
-          <View style={styles.progressLineBackground}>
-            <View
-              style={[
-                styles.progressLine,
-                {
-                  width: `${Math.min(femalePercentage, 100)}%`,
-                  backgroundColor: RevampedColors.femaleRecommended,
-                },
-              ]}
-            />
-          </View>
-          <Text style={[styles.lineLabel, { color: RevampedColors.femaleRecommended }]}>
-            ♀{metric.femaleRecommended}
-          </Text>
-        </View>
-      </View>
+      <MultiLineProgressBar
+        lines={progressData}
+        unit={metric.unit}
+        showValues={true}
+        lineHeight={4}
+        spacing={4}
+      />
     );
   };
 
@@ -541,32 +495,7 @@ const styles = StyleSheet.create({
     color: RevampedColors.textUnit,
     marginTop: 2,
   },
-  // Progress Bar Components
-  progressBarContainer: {
-    marginTop: Spacing.xs,
-  },
-  progressLineContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  progressLineBackground: {
-    flex: 1,
-    height: 4,
-    backgroundColor: '#F0F0F0',
-    borderRadius: 2,
-    marginRight: Spacing.sm,
-  },
-  progressLine: {
-    height: 4,
-    borderRadius: 2,
-  },
-  lineLabel: {
-    fontSize: FontSizes.small,
-    fontWeight: '500',
-    minWidth: 60,
-    textAlign: 'right',
-  },
+
 
   // Loading and Error States
   loadingContainer: {

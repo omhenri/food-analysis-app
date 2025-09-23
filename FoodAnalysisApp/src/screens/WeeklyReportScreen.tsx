@@ -13,6 +13,7 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { WeeklyReportService, WeeklyReportData } from '../services/WeeklyReportService';
 import { ComparisonCard } from '../components/ComparisonCard';
 import { Colors, Spacing, BorderRadius, FontSizes } from '../constants/theme';
+import { MultiLineProgressBar, createWeeklyComparisonData } from '../components/MultiLineProgressBar';
 
 type RecordsStackParamList = {
   PastRecords: undefined;
@@ -55,18 +56,18 @@ export const WeeklyReportScreen: React.FC = () => {
 
   const getWeekDateRange = (): string => {
     if (!reportData) return '';
-    
+
     const startDate = new Date(reportData.week.startDate);
-    const endDate = reportData.week.endDate 
+    const endDate = reportData.week.endDate
       ? new Date(reportData.week.endDate)
       : new Date(startDate.getTime() + 6 * 24 * 60 * 60 * 1000);
 
-    return `${startDate.toLocaleDateString('en-US', { 
-      month: 'short', 
-      day: 'numeric' 
-    })} - ${endDate.toLocaleDateString('en-US', { 
-      month: 'short', 
-      day: 'numeric' 
+    return `${startDate.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric'
+    })} - ${endDate.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric'
     })}`;
   };
 
@@ -76,7 +77,7 @@ export const WeeklyReportScreen: React.FC = () => {
     const { summary } = reportData;
 
     return (
-      <ScrollView 
+      <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -87,17 +88,51 @@ export const WeeklyReportScreen: React.FC = () => {
             <Text style={styles.overviewNumber}>{summary.daysWithData}</Text>
             <Text style={styles.overviewLabel}>Days Tracked</Text>
           </View>
-          
+
           <View style={styles.overviewCard}>
             <Text style={styles.overviewNumber}>{summary.averageCaloriesPerDay}</Text>
             <Text style={styles.overviewLabel}>Avg Calories/Day</Text>
           </View>
-          
+
           <View style={styles.overviewCard}>
             <Text style={[styles.overviewNumber, { color: getScoreColor(summary.nutritionScore) }]}>
               {summary.nutritionScore}%
             </Text>
             <Text style={styles.overviewLabel}>Nutrition Score</Text>
+          </View>
+        </View>
+
+        {/* Weekly Progress Comparison */}
+        <View style={styles.sectionContainer}>
+          <Text style={styles.sectionTitle}>Weekly Progress</Text>
+          <View style={styles.progressCard}>
+            <Text style={styles.progressMetricTitle}>Average Daily Calories</Text>
+            <MultiLineProgressBar
+              lines={createWeeklyComparisonData(
+                summary.averageCaloriesPerDay,
+                summary.averageCaloriesPerDay * 0.9, // Previous week (mock data)
+                2000, // Target calories
+                ' cal'
+              )}
+              showValues={true}
+              lineHeight={6}
+              spacing={6}
+            />
+          </View>
+
+          <View style={styles.progressCard}>
+            <Text style={styles.progressMetricTitle}>Nutrition Score Trend</Text>
+            <MultiLineProgressBar
+              lines={createWeeklyComparisonData(
+                summary.nutritionScore,
+                summary.nutritionScore - 5, // Previous week (mock data)
+                85, // Target score
+                '%'
+              )}
+              showValues={true}
+              lineHeight={6}
+              spacing={6}
+            />
           </View>
         </View>
 
@@ -133,7 +168,7 @@ export const WeeklyReportScreen: React.FC = () => {
     if (!reportData) return null;
 
     return (
-      <ScrollView 
+      <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -153,7 +188,7 @@ export const WeeklyReportScreen: React.FC = () => {
     if (!reportData) return null;
 
     return (
-      <ScrollView 
+      <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -173,7 +208,7 @@ export const WeeklyReportScreen: React.FC = () => {
                 })}
               </Text>
             </View>
-            
+
             <View style={styles.dayStats}>
               <Text style={styles.dayStatText}>
                 {dayData.totalCalories} calories • {dayData.mealCount} meals
@@ -266,7 +301,7 @@ export const WeeklyReportScreen: React.FC = () => {
               Summary
             </Text>
           </TouchableOpacity>
-          
+
           <TouchableOpacity
             style={[
               styles.toggleButton,
@@ -413,6 +448,23 @@ const styles = StyleSheet.create({
   },
   sectionContainer: {
     marginBottom: Spacing.lg,
+  },
+  progressCard: {
+    backgroundColor: Colors.cardBackground,
+    borderRadius: BorderRadius.medium,
+    padding: Spacing.md,
+    marginBottom: Spacing.sm,
+    shadowColor: Colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  progressMetricTitle: {
+    fontSize: FontSizes.medium,
+    fontWeight: '600',
+    color: Colors.textPrimary,
+    marginBottom: Spacing.sm,
   },
   sectionTitle: {
     fontSize: FontSizes.large,

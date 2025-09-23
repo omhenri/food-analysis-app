@@ -6,6 +6,7 @@ import {
 } from 'react-native';
 import { ComparisonData, ConsumptionStatus } from '../models/types';
 import { Colors, Spacing, BorderRadius, FontSizes } from '../constants/theme';
+import { MultiLineProgressBar, createNutritionComparisonData } from './MultiLineProgressBar';
 
 interface ComparisonCardProps {
   comparisonData: ComparisonData;
@@ -109,26 +110,19 @@ export const ComparisonCard: React.FC<ComparisonCardProps> = ({
         )}
       </View>
 
-      {/* Progress Bar */}
+      {/* Multi-line Progress Bar */}
       {comparisonData.recommended > 0 && (
-        <View style={styles.progressContainer}>
-          <View style={styles.progressBar}>
-            <View 
-              style={[
-                styles.progressFill, 
-                { 
-                  width: getProgressBarWidth(),
-                  backgroundColor: getStatusColor(comparisonData.status),
-                }
-              ]} 
-            />
-          </View>
-          <View style={styles.progressLabels}>
-            <Text style={styles.progressLabel}>0%</Text>
-            <Text style={styles.progressLabel}>100%</Text>
-            <Text style={styles.progressLabel}>200%</Text>
-          </View>
-        </View>
+        <MultiLineProgressBar
+          lines={createNutritionComparisonData(
+            comparisonData.consumed,
+            comparisonData.recommended,
+            comparisonData.recommended, // Using same value for both male/female for now
+            formatAmount(1).replace(/[\d.]/g, '') // Extract unit from formatted amount
+          )}
+          showValues={true}
+          lineHeight={4}
+          spacing={4}
+        />
       )}
     </View>
   );
