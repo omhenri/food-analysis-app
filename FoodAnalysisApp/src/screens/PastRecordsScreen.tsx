@@ -330,7 +330,6 @@ export const PastRecordsScreen: React.FC = () => {
 
   const renderProgressBar = (metric: NutritionMetric) => {
     const maxValue = Math.max(metric.value, metric.maleRecommended, metric.femaleRecommended);
-    const barWidth = screenWidth - 120; // Account for padding and value display
     
     const userPercentage = (metric.value / maxValue) * 100;
     const malePercentage = (metric.maleRecommended / maxValue) * 100;
@@ -338,45 +337,56 @@ export const PastRecordsScreen: React.FC = () => {
 
     return (
       <View style={styles.progressBarContainer}>
-        <View style={styles.progressBarBackground}>
-          {/* Male recommendation line */}
-          <View
-            style={[
-              styles.recommendationLine,
-              {
-                left: `${malePercentage}%`,
-                backgroundColor: RevampedColors.maleRecommended,
-              },
-            ]}
-          />
-          {/* Female recommendation line */}
-          <View
-            style={[
-              styles.recommendationLine,
-              {
-                left: `${femalePercentage}%`,
-                backgroundColor: RevampedColors.femaleRecommended,
-              },
-            ]}
-          />
-          {/* User actual bar */}
-          <View
-            style={[
-              styles.userActualBar,
-              {
-                width: `${Math.min(userPercentage, 100)}%`,
-                backgroundColor: RevampedColors.userActual,
-              },
-            ]}
-          />
-        </View>
-        
-        {/* Tooltip values */}
-        <View style={styles.tooltipContainer}>
-          <Text style={[styles.tooltipText, { color: RevampedColors.maleRecommended }]}>
+        {/* First line - Male recommendation (Blue) */}
+        <View style={styles.progressLineContainer}>
+          <View style={styles.progressLineBackground}>
+            <View
+              style={[
+                styles.progressLine,
+                {
+                  width: `${Math.min(malePercentage, 100)}%`,
+                  backgroundColor: RevampedColors.maleRecommended,
+                },
+              ]}
+            />
+          </View>
+          <Text style={[styles.lineLabel, { color: RevampedColors.maleRecommended }]}>
             ♂{metric.maleRecommended}
           </Text>
-          <Text style={[styles.tooltipText, { color: RevampedColors.femaleRecommended }]}>
+        </View>
+
+        {/* Second line - User actual consumption (Teal) */}
+        <View style={styles.progressLineContainer}>
+          <View style={styles.progressLineBackground}>
+            <View
+              style={[
+                styles.progressLine,
+                {
+                  width: `${Math.min(userPercentage, 100)}%`,
+                  backgroundColor: RevampedColors.userActual,
+                },
+              ]}
+            />
+          </View>
+          <Text style={[styles.lineLabel, { color: RevampedColors.userActual }]}>
+            {metric.value}
+          </Text>
+        </View>
+
+        {/* Third line - Female recommendation (Pink) */}
+        <View style={styles.progressLineContainer}>
+          <View style={styles.progressLineBackground}>
+            <View
+              style={[
+                styles.progressLine,
+                {
+                  width: `${Math.min(femalePercentage, 100)}%`,
+                  backgroundColor: RevampedColors.femaleRecommended,
+                },
+              ]}
+            />
+          </View>
+          <Text style={[styles.lineLabel, { color: RevampedColors.femaleRecommended }]}>
             ♀{metric.femaleRecommended}
           </Text>
         </View>
@@ -401,21 +411,7 @@ export const PastRecordsScreen: React.FC = () => {
     );
   };
 
-  const renderBottomNavigation = () => {
-    return (
-      <View style={styles.bottomNav}>
-        <TouchableOpacity style={styles.navItem}>
-          <Text style={styles.navIcon}>📊</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.navItem}>
-          <Text style={styles.navLogo}>rejuvenai</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.navItem}>
-          <Text style={styles.navIcon}>📄</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  };
+
 
   if (isLoading) {
     return (
@@ -457,9 +453,6 @@ export const PastRecordsScreen: React.FC = () => {
           )}
         </View>
       </ScrollView>
-
-      {/* Bottom Navigation */}
-      {renderBottomNavigation()}
     </View>
   );
 };
@@ -472,7 +465,8 @@ const styles = StyleSheet.create({
   // Top Navigation Section
   tabContainer: {
     backgroundColor: RevampedColors.cardBackground,
-    paddingVertical: Spacing.sm,
+    paddingTop: 60, // Add extra padding to avoid dynamic island
+    paddingBottom: Spacing.sm,
     borderBottomWidth: 1,
     borderBottomColor: '#E0E0E0',
   },
@@ -483,21 +477,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
     marginRight: Spacing.sm,
-    borderRadius: BorderRadius.small,
-    backgroundColor: RevampedColors.inactiveTab,
     minWidth: 80,
     alignItems: 'center',
   },
   selectedTab: {
-    backgroundColor: RevampedColors.selectedTab,
+    // No background color for selected tab
   },
   tabText: {
     fontSize: FontSizes.small,
     fontWeight: '500',
-    color: RevampedColors.cardBackground,
+    color: RevampedColors.inactiveTab, // Theme color for inactive tabs
   },
   selectedTabText: {
-    color: RevampedColors.cardBackground,
+    color: RevampedColors.selectedTab, // Dark color for selected tab
     fontWeight: 'bold',
   },
   // Main Content
@@ -553,60 +545,29 @@ const styles = StyleSheet.create({
   progressBarContainer: {
     marginTop: Spacing.xs,
   },
-  progressBarBackground: {
-    height: 8,
-    backgroundColor: '#F0F0F0',
-    borderRadius: 4,
-    position: 'relative',
-    marginBottom: Spacing.xs,
-  },
-  recommendationLine: {
-    position: 'absolute',
-    width: 2,
-    height: 12,
-    top: -2,
-    borderRadius: 1,
-  },
-  userActualBar: {
-    height: 8,
-    borderRadius: 4,
-    position: 'absolute',
-    top: 0,
-    left: 0,
-  },
-  tooltipContainer: {
+  progressLineContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.xs,
+    alignItems: 'center',
+    marginBottom: 4,
   },
-  tooltipText: {
+  progressLineBackground: {
+    flex: 1,
+    height: 4,
+    backgroundColor: '#F0F0F0',
+    borderRadius: 2,
+    marginRight: Spacing.sm,
+  },
+  progressLine: {
+    height: 4,
+    borderRadius: 2,
+  },
+  lineLabel: {
     fontSize: FontSizes.small,
     fontWeight: '500',
+    minWidth: 60,
+    textAlign: 'right',
   },
-  // Bottom Navigation
-  bottomNav: {
-    flexDirection: 'row',
-    backgroundColor: RevampedColors.cardBackground,
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.lg,
-    borderTopWidth: 1,
-    borderTopColor: '#E0E0E0',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  navItem: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  navIcon: {
-    fontSize: 24,
-    color: RevampedColors.textSecondary,
-  },
-  navLogo: {
-    fontSize: FontSizes.medium,
-    fontWeight: 'bold',
-    color: RevampedColors.textPrimary,
-  },
+
   // Loading and Error States
   loadingContainer: {
     flex: 1,
