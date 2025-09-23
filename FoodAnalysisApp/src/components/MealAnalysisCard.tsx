@@ -6,8 +6,9 @@ import {
   StyleSheet,
   Animated,
 } from 'react-native';
-import { AnalysisResult, MealType, ChemicalSubstance } from '../models/types';
+import { AnalysisResult, MealType } from '../models/types';
 import { Colors, Spacing, BorderRadius, FontSizes } from '../constants/theme';
+import { MealIcon } from './MealIcon';
 
 interface MealAnalysisCardProps {
   mealType: MealType;
@@ -32,20 +33,6 @@ export const MealAnalysisCard: React.FC<MealAnalysisCardProps> = ({
     }).start();
   }, [isExpanded, animation]);
 
-  const getMealIcon = (meal: MealType): string => {
-    switch (meal) {
-      case 'breakfast':
-        return '🍳';
-      case 'lunch':
-        return '🍽️';
-      case 'dinner':
-        return '🍖';
-      case 'snack':
-        return '🍿';
-      default:
-        return '🍽️';
-    }
-  };
 
   const getCategoryColor = (category: string): string => {
     switch (category) {
@@ -73,13 +60,6 @@ export const MealAnalysisCard: React.FC<MealAnalysisCardProps> = ({
     }
   };
 
-  const getAllSubstances = (): ChemicalSubstance[] => {
-    const substances: ChemicalSubstance[] = [];
-    analysisResults.forEach(result => {
-      substances.push(...result.chemicalSubstances);
-    });
-    return substances;
-  };
 
   const groupSubstancesByFood = () => {
     return analysisResults.map(result => ({
@@ -99,7 +79,7 @@ export const MealAnalysisCard: React.FC<MealAnalysisCardProps> = ({
       {/* Header */}
       <TouchableOpacity style={styles.header} onPress={onToggle}>
         <View style={styles.headerLeft}>
-          <Text style={styles.mealIcon}>{getMealIcon(mealType)}</Text>
+          <MealIcon mealType={mealType} />
           <Text style={styles.mealTitle}>
             {mealType.charAt(0).toUpperCase() + mealType.slice(1)}
           </Text>
@@ -176,10 +156,6 @@ const styles = StyleSheet.create({
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  mealIcon: {
-    fontSize: 20,
-    marginRight: Spacing.xs,
   },
   mealTitle: {
     fontSize: FontSizes.medium,

@@ -10,6 +10,7 @@ import {
 import { FoodItem, MealType, PortionSize } from '../models/types';
 import { Colors, Spacing, BorderRadius, FontSizes } from '../constants/theme';
 import { MEAL_TYPES, PORTION_SIZES } from '../utils/validation';
+import { MealIcon } from './MealIcon';
 
 interface FoodInputRowProps {
   food: FoodItem;
@@ -41,20 +42,6 @@ export const FoodInputRow: React.FC<FoodInputRowProps> = ({
     setShowPortionModal(false);
   };
 
-  const getMealTypeIcon = (mealType: MealType) => {
-    switch (mealType) {
-      case 'breakfast':
-        return '🍳';
-      case 'lunch':
-        return '🍽️';
-      case 'dinner':
-        return '🍖';
-      case 'snack':
-        return '🍿';
-      default:
-        return '🍽️';
-    }
-  };
 
   return (
     <View style={styles.container}>
@@ -64,7 +51,7 @@ export const FoodInputRow: React.FC<FoodInputRowProps> = ({
           style={styles.mealTypeButton}
           onPress={() => setShowMealTypeModal(true)}
         >
-          <Text style={styles.mealTypeIcon}>{getMealTypeIcon(food.mealType)}</Text>
+          <MealIcon mealType={food.mealType} />
         </TouchableOpacity>
 
         {/* Food Name Input */}
@@ -111,9 +98,7 @@ export const FoodInputRow: React.FC<FoodInputRowProps> = ({
                 style={styles.mealTypeOption}
                 onPress={() => handleMealTypeSelect(mealType)}
               >
-                <Text style={styles.mealTypeOptionIcon}>
-                  {getMealTypeIcon(mealType)}
-                </Text>
+                <MealIcon mealType={mealType} />
                 <Text style={styles.mealTypeOptionText}>
                   {mealType.charAt(0).toUpperCase() + mealType.slice(1)}
                 </Text>
@@ -181,9 +166,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginRight: Spacing.xs,
   },
-  mealTypeIcon: {
-    fontSize: 20,
-  },
   foodInput: {
     flex: 1,
     fontSize: FontSizes.small,
@@ -244,10 +226,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: Spacing.xs,
     paddingHorizontal: Spacing.xs,
-  },
-  mealTypeOptionIcon: {
-    fontSize: 16,
-    marginRight: Spacing.xs,
   },
   mealTypeOptionText: {
     fontSize: FontSizes.small,
