@@ -5,10 +5,9 @@ import {
   StyleSheet,
   SafeAreaView,
   ActivityIndicator,
-  Alert,
   ScrollView,
   TouchableOpacity,
-  FlatList,
+  Dimensions,
 } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -27,12 +26,47 @@ type PastRecordsScreenNavigationProp = StackNavigationProp<RecordsStackParamList
 interface DayWithData extends Day {
   foodCount: number;
   hasAnalysis: boolean;
+  nutritionData?: NutritionMetric[];
 }
+
+interface NutritionMetric {
+  name: string;
+  value: number;
+  unit: string;
+  maleRecommended: number;
+  femaleRecommended: number;
+  category: 'calories' | 'fat' | 'cholesterol' | 'mineral' | 'vitamin';
+}
+
+interface TabItem {
+  id: string;
+  label: string;
+  type: 'previous' | 'day' | 'report' | 'next';
+  dayNumber?: number;
+}
+
+const { width: screenWidth } = Dimensions.get('window');
+
+// New color palette as per requirements
+const RevampedColors = {
+  background: '#6FF3E0', // Bright teal background
+  cardBackground: '#FFFFFF', // White card background
+  selectedTab: '#000000', // Black for selected tab
+  inactiveTab: '#6FF3E0', // Teal for inactive tabs
+  maleRecommended: '#4A90E2', // Blue for male recommendations
+  femaleRecommended: '#E24A90', // Pink for female recommendations
+  userActual: '#6FF3E0', // Teal for user actuals
+  textPrimary: '#000000', // Black text
+  textSecondary: '#666666', // Gray text
+  textUnit: '#999999', // Light gray for units
+};
 
 export const PastRecordsScreen: React.FC = () => {
   const navigation = useNavigation<PastRecordsScreenNavigationProp>();
-  const [weeks, setWeeks] = useState<Week[]>([]);
-  const [daysWithData, setDaysWithData] = useState<DayWithData[]>([]);
+  const [currentWeek, setCurrentWeek] = useState<Week | null>(null);
+  const [selectedDay, setSelectedDay] = useState<number>(1);
+  const [selectedDayData, setSelectedDayData] = useState<DayWithData | null>(null);
+  const [tabs, setTabs] = useState<TabItem[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -50,6 +84,12 @@ export const PastRecordsScreen: React.FC = () => {
     }, [])
   );
 
+  useEffect(() => {
+    if (currentWeek) {
+      loadDayData(selectedDay);
+    }
+  }, [selectedDay, currentWeek]);
+
   const initializeData = async () => {
     try {
       setIsLoading(true);
@@ -58,32 +98,12 @@ export const PastRecordsScreen: React.FC = () => {
       // Initialize database
       await databaseService.initializeDatabase();
 
-      // Get all weeks
-      const allWeeks = await databaseService.getAllWeeks();
-      setWeeks(allWeeks);
+      // Get current week
+      const week = await databaseService.getCurrentWeek();
+      setCurrentWeek(week);
 
-      // Get all days with their data counts
-      const allDaysWithData: DayWithData[] = [];
-      
-      for (const week of allWeeks) {
-        const weekDays = await databaseService.getDaysForWeek(week.id);
-        
-        for (const day of weekDays) {
-          // Get food entries count for this day
-          const foodEntries = await databaseService.getFoodEntriesForDay(day.id);
-          const analysisResults = await databaseService.getAnalysisForDay(day.id);
-          
-          allDaysWithData.push({
-            ...day,
-            foodCount: foodEntries.length,
-            hasAnalysis: analysisResults.length > 0,
-          });
-        }
-      }
-
-      // Sort days by date (most recent first)
-      allDaysWithData.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-      setDaysWithData(allDaysWithData);
+      // Generate tabs for the current week
+      generateTabs(week);
 
     } catch (err) {
       console.error('Failed to initialize past records:', err);
@@ -93,119 +113,306 @@ export const PastRecordsScreen: React.FC = () => {
     }
   };
 
-  const handleDayPress = (day: DayWithData) => {
-    navigation.navigate('DayDetail', { day });
-  };
+  const generateTabs = (week: Week) => {
+    const newTabs: TabItem[] = [];
 
-  const handleWeeklyReportPress = (weekId: number) => {
-    navigation.navigate('WeeklyReport', { weekId });
-  };
-
-  const formatDate = (dateString: string): string => {
-    const date = new Date(dateString);
-    const today = new Date().toISOString().split('T')[0];
-    const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-    
-    if (dateString === today) {
-      return 'Today';
-    } else if (dateString === yesterday) {
-      return 'Yesterday';
-    } else {
-      return date.toLocaleDateString('en-US', { 
-        weekday: 'long',
-        month: 'long', 
-        day: 'numeric' 
-      });
-    }
-  };
-
-  const getDayStatusText = (day: DayWithData): string => {
-    if (day.foodCount === 0) {
-      return 'No food entries';
-    } else if (!day.hasAnalysis) {
-      return `${day.foodCount} food${day.foodCount !== 1 ? 's' : ''} • Not analyzed`;
-    } else {
-      return `${day.foodCount} food${day.foodCount !== 1 ? 's' : ''} • Analyzed`;
-    }
-  };
-
-  const getDayStatusColor = (day: DayWithData): string => {
-    if (day.foodCount === 0) {
-      return Colors.textSecondary;
-    } else if (!day.hasAnalysis) {
-      return Colors.warning;
-    } else {
-      return Colors.success;
-    }
-  };
-
-  const renderDayItem = ({ item: day }: { item: DayWithData }) => (
-    <TouchableOpacity
-      style={styles.dayItem}
-      onPress={() => handleDayPress(day)}
-      activeOpacity={0.7}
-    >
-      <View style={styles.dayItemContent}>
-        <View style={styles.dayItemHeader}>
-          <Text style={styles.dayItemTitle}>
-            Day {day.dayNumber}
-          </Text>
-          <Text style={styles.dayItemDate}>
-            {formatDate(day.date)}
-          </Text>
-        </View>
-        
-        <Text style={[styles.dayItemStatus, { color: getDayStatusColor(day) }]}>
-          {getDayStatusText(day)}
-        </Text>
-        
-        <View style={styles.dayItemFooter}>
-          <Text style={styles.dayItemWeek}>
-            Week {Math.ceil(day.dayNumber / 7)}
-          </Text>
-          <Text style={styles.dayItemArrow}>→</Text>
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
-
-  const renderWeeklyReportButton = () => {
-    const completedWeeks = weeks.filter(week => {
-      const weekDays = daysWithData.filter(day => day.weekId === week.id);
-      return weekDays.length >= 7;
+    // Previous Week tab
+    newTabs.push({
+      id: 'previous',
+      label: 'Previous Week',
+      type: 'previous',
     });
 
-    if (completedWeeks.length === 0) {
-      return null;
+    // Day 1-7 tabs
+    for (let i = 1; i <= 7; i++) {
+      newTabs.push({
+        id: `day${i}`,
+        label: `Day${i}`,
+        type: 'day',
+        dayNumber: i,
+      });
     }
 
+    // Week Report tab
+    newTabs.push({
+      id: 'report',
+      label: 'Week Report',
+      type: 'report',
+    });
+
+    // Next Week tab (only if not on current latest week)
+    // For now, always show it - can be conditionally hidden later
+    newTabs.push({
+      id: 'next',
+      label: 'Next Week',
+      type: 'next',
+    });
+
+    setTabs(newTabs);
+  };
+
+  const loadDayData = async (dayNumber: number) => {
+    if (!currentWeek) return;
+
+    try {
+      // Get the specific day
+      const days = await databaseService.getDaysForWeek(currentWeek.id);
+      const day = days.find(d => d.dayNumber === dayNumber);
+
+      if (day) {
+        // Get food entries and analysis for this day
+        const foodEntries = await databaseService.getFoodEntriesForDay(day.id);
+        const analysisResults = await databaseService.getAnalysisForDay(day.id);
+
+        // Generate mock nutrition data based on analysis results
+        const nutritionData = generateNutritionData(analysisResults);
+
+        const dayWithData: DayWithData = {
+          ...day,
+          foodCount: foodEntries.length,
+          hasAnalysis: analysisResults.length > 0,
+          nutritionData,
+        };
+
+        setSelectedDayData(dayWithData);
+      } else {
+        // Create empty day data if day doesn't exist yet
+        setSelectedDayData({
+          id: 0,
+          weekId: currentWeek.id,
+          dayNumber,
+          date: new Date().toISOString().split('T')[0],
+          createdAt: new Date().toISOString(),
+          foodCount: 0,
+          hasAnalysis: false,
+          nutritionData: getDefaultNutritionData(),
+        });
+      }
+    } catch (err) {
+      console.error('Failed to load day data:', err);
+    }
+  };
+
+  const generateNutritionData = (analysisResults: any[]): NutritionMetric[] => {
+    // Extract nutrition data from analysis results or use defaults
+    const baseData = getDefaultNutritionData();
+    
+    if (analysisResults.length > 0) {
+      // Calculate totals from analysis results
+      let totalCalories = 0;
+      let totalSaturatedFat = 0;
+      let totalCholesterol = 0;
+      let totalCalcium = 0;
+
+      analysisResults.forEach(result => {
+        result.chemicalSubstances?.forEach((substance: any) => {
+          switch (substance.name.toLowerCase()) {
+            case 'calories':
+            case 'energy':
+              totalCalories += substance.amount || 0;
+              break;
+            case 'saturated fat':
+              totalSaturatedFat += substance.amount || 0;
+              break;
+            case 'cholesterol':
+              totalCholesterol += substance.amount || 0;
+              break;
+            case 'calcium':
+              totalCalcium += substance.amount || 0;
+              break;
+          }
+        });
+      });
+
+      // Update base data with calculated values
+      baseData[0].value = totalCalories || 1756; // Default to example value
+      baseData[1].value = totalSaturatedFat || 12.5;
+      baseData[2].value = totalCholesterol || 185;
+      baseData[3].value = totalCalcium || 850;
+    }
+
+    return baseData;
+  };
+
+  const getDefaultNutritionData = (): NutritionMetric[] => [
+    {
+      name: 'Calories',
+      value: 1756,
+      unit: 'cal',
+      maleRecommended: 1266,
+      femaleRecommended: 1122,
+      category: 'calories',
+    },
+    {
+      name: 'Saturated Fat',
+      value: 12.5,
+      unit: 'g',
+      maleRecommended: 20,
+      femaleRecommended: 18,
+      category: 'fat',
+    },
+    {
+      name: 'Cholesterol',
+      value: 185,
+      unit: 'mg',
+      maleRecommended: 300,
+      femaleRecommended: 300,
+      category: 'cholesterol',
+    },
+    {
+      name: 'Calcium',
+      value: 850,
+      unit: 'mg',
+      maleRecommended: 1000,
+      femaleRecommended: 1000,
+      category: 'mineral',
+    },
+  ];
+
+  const handleTabPress = (tab: TabItem) => {
+    switch (tab.type) {
+      case 'previous':
+        // Navigate to previous week
+        console.log('Navigate to previous week');
+        break;
+      case 'day':
+        if (tab.dayNumber) {
+          setSelectedDay(tab.dayNumber);
+        }
+        break;
+      case 'report':
+        if (currentWeek) {
+          navigation.navigate('WeeklyReport', { weekId: currentWeek.id });
+        }
+        break;
+      case 'next':
+        // Navigate to next week
+        console.log('Navigate to next week');
+        break;
+    }
+  };
+
+  const renderScrollableTabs = () => {
     return (
-      <View style={styles.weeklyReportSection}>
-        <Text style={styles.sectionTitle}>Weekly Reports</Text>
-        {completedWeeks.map(week => (
-          <TouchableOpacity
-            key={week.id}
-            style={styles.weeklyReportButton}
-            onPress={() => handleWeeklyReportPress(week.id)}
-            activeOpacity={0.7}
-          >
-            <View style={styles.weeklyReportContent}>
-              <Text style={styles.weeklyReportTitle}>
-                Week {week.weekNumber} Report
-              </Text>
-              <Text style={styles.weeklyReportDate}>
-                {new Date(week.startDate).toLocaleDateString('en-US', { 
-                  month: 'short', 
-                  day: 'numeric' 
-                })} - {week.endDate ? new Date(week.endDate).toLocaleDateString('en-US', { 
-                  month: 'short', 
-                  day: 'numeric' 
-                }) : 'Present'}
-              </Text>
-              <Text style={styles.weeklyReportArrow}>→</Text>
-            </View>
-          </TouchableOpacity>
-        ))}
+      <View style={styles.tabContainer}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.tabScrollContent}
+        >
+          {tabs.map((tab) => {
+            const isSelected = tab.type === 'day' && tab.dayNumber === selectedDay;
+            return (
+              <TouchableOpacity
+                key={tab.id}
+                style={[
+                  styles.tab,
+                  isSelected && styles.selectedTab,
+                ]}
+                onPress={() => handleTabPress(tab)}
+                activeOpacity={0.7}
+              >
+                <Text
+                  style={[
+                    styles.tabText,
+                    isSelected && styles.selectedTabText,
+                  ]}
+                >
+                  {tab.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      </View>
+    );
+  };
+
+  const renderProgressBar = (metric: NutritionMetric) => {
+    const maxValue = Math.max(metric.value, metric.maleRecommended, metric.femaleRecommended);
+    const barWidth = screenWidth - 120; // Account for padding and value display
+    
+    const userPercentage = (metric.value / maxValue) * 100;
+    const malePercentage = (metric.maleRecommended / maxValue) * 100;
+    const femalePercentage = (metric.femaleRecommended / maxValue) * 100;
+
+    return (
+      <View style={styles.progressBarContainer}>
+        <View style={styles.progressBarBackground}>
+          {/* Male recommendation line */}
+          <View
+            style={[
+              styles.recommendationLine,
+              {
+                left: `${malePercentage}%`,
+                backgroundColor: RevampedColors.maleRecommended,
+              },
+            ]}
+          />
+          {/* Female recommendation line */}
+          <View
+            style={[
+              styles.recommendationLine,
+              {
+                left: `${femalePercentage}%`,
+                backgroundColor: RevampedColors.femaleRecommended,
+              },
+            ]}
+          />
+          {/* User actual bar */}
+          <View
+            style={[
+              styles.userActualBar,
+              {
+                width: `${Math.min(userPercentage, 100)}%`,
+                backgroundColor: RevampedColors.userActual,
+              },
+            ]}
+          />
+        </View>
+        
+        {/* Tooltip values */}
+        <View style={styles.tooltipContainer}>
+          <Text style={[styles.tooltipText, { color: RevampedColors.maleRecommended }]}>
+            ♂{metric.maleRecommended}
+          </Text>
+          <Text style={[styles.tooltipText, { color: RevampedColors.femaleRecommended }]}>
+            ♀{metric.femaleRecommended}
+          </Text>
+        </View>
+      </View>
+    );
+  };
+
+  const renderNutritionCard = (metric: NutritionMetric, index: number) => {
+    return (
+      <View key={metric.name} style={styles.nutritionCard}>
+        <View style={styles.cardContent}>
+          <View style={styles.leftSection}>
+            <Text style={styles.metricLabel}>{metric.name}</Text>
+            {renderProgressBar(metric)}
+          </View>
+          <View style={styles.rightSection}>
+            <Text style={styles.metricValue}>{metric.value}</Text>
+            <Text style={styles.metricUnit}>{metric.unit}</Text>
+          </View>
+        </View>
+      </View>
+    );
+  };
+
+  const renderBottomNavigation = () => {
+    return (
+      <View style={styles.bottomNav}>
+        <TouchableOpacity style={styles.navItem}>
+          <Text style={styles.navIcon}>📊</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.navItem}>
+          <Text style={styles.navLogo}>rejuvenai</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.navItem}>
+          <Text style={styles.navIcon}>📄</Text>
+        </TouchableOpacity>
       </View>
     );
   };
@@ -214,8 +421,8 @@ export const PastRecordsScreen: React.FC = () => {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={Colors.primary} />
-          <Text style={styles.loadingText}>Loading your records...</Text>
+          <ActivityIndicator size="large" color={RevampedColors.textPrimary} />
+          <Text style={styles.loadingText}>Loading nutrition data...</Text>
         </View>
       </SafeAreaView>
     );
@@ -238,228 +445,202 @@ export const PastRecordsScreen: React.FC = () => {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.title}>Past Records</Text>
-          <TouchableOpacity 
-            style={styles.refreshButton}
-            onPress={() => {
-              console.log('Manual refresh triggered');
-              initializeData();
-            }}
-          >
-            <Text style={styles.refreshButtonText}>🔄</Text>
-          </TouchableOpacity>
-        </View>
+    <View style={styles.container}>
+      {/* Top Navigation Section - Scrollable Tabs */}
+      {renderScrollableTabs()}
 
-        {/* Content */}
-        {daysWithData.length > 0 ? (
-          <FlatList
-            data={daysWithData}
-            renderItem={renderDayItem}
-            keyExtractor={(item) => item.id.toString()}
-            contentContainerStyle={styles.listContent}
-            showsVerticalScrollIndicator={false}
-            ListHeaderComponent={renderWeeklyReportButton}
-          />
-        ) : (
-          <View style={styles.noDataContainer}>
-            <Text style={styles.noDataText}>No days recorded yet</Text>
-            <Text style={styles.noDataSubtext}>
-              Start tracking your food to see your history here
-            </Text>
-          </View>
-        )}
-      </View>
-    </SafeAreaView>
+      {/* Main Data Card Section */}
+      <ScrollView style={styles.mainContent} showsVerticalScrollIndicator={false}>
+        <View style={styles.dataCardsContainer}>
+          {selectedDayData?.nutritionData?.map((metric, index) => 
+            renderNutritionCard(metric, index)
+          )}
+        </View>
+      </ScrollView>
+
+      {/* Bottom Navigation */}
+      {renderBottomNavigation()}
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: RevampedColors.background,
   },
-  content: {
-    flex: 1,
+  // Top Navigation Section
+  tabContainer: {
+    backgroundColor: RevampedColors.cardBackground,
+    paddingVertical: Spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E0E0',
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+  tabScrollContent: {
     paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.md,
-    backgroundColor: Colors.background,
   },
-  title: {
-    fontSize: FontSizes.xxlarge,
-    fontWeight: '900',
-    color: Colors.white,
-    textAlign: 'center',
-    textTransform: 'capitalize',
-    flex: 1,
-  },
-  refreshButton: {
-    padding: Spacing.xs,
-    borderRadius: BorderRadius.medium,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-  },
-  refreshButtonText: {
-    fontSize: 20,
-    color: Colors.white,
-  },
-  listContent: {
+  tab: {
     paddingHorizontal: Spacing.md,
-    paddingBottom: Spacing.lg,
-  },
-  sectionTitle: {
-    fontSize: FontSizes.large,
-    fontWeight: '600',
-    color: Colors.textPrimary,
-    marginTop: Spacing.lg,
-    marginBottom: Spacing.md,
-    paddingHorizontal: Spacing.xs,
-  },
-  weeklyReportSection: {
-    backgroundColor: Colors.white,
-    marginBottom: Spacing.md,
-  },
-  weeklyReportButton: {
-    backgroundColor: Colors.primary,
-    borderRadius: BorderRadius.medium,
-    marginBottom: Spacing.sm,
-    shadowColor: Colors.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  weeklyReportContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.md,
-  },
-  weeklyReportTitle: {
-    flex: 1,
-    fontSize: FontSizes.medium,
-    fontWeight: '600',
-    color: Colors.white,
-  },
-  weeklyReportDate: {
-    fontSize: FontSizes.small,
-    color: Colors.white,
-    opacity: 0.8,
+    paddingVertical: Spacing.sm,
     marginRight: Spacing.sm,
+    borderRadius: BorderRadius.small,
+    backgroundColor: RevampedColors.inactiveTab,
+    minWidth: 80,
+    alignItems: 'center',
   },
-  weeklyReportArrow: {
-    fontSize: FontSizes.medium,
-    color: Colors.white,
+  selectedTab: {
+    backgroundColor: RevampedColors.selectedTab,
+  },
+  tabText: {
+    fontSize: FontSizes.small,
+    fontWeight: '500',
+    color: RevampedColors.cardBackground,
+  },
+  selectedTabText: {
+    color: RevampedColors.cardBackground,
     fontWeight: 'bold',
   },
-  dayItem: {
-    backgroundColor: Colors.white,
+  // Main Content
+  mainContent: {
+    flex: 1,
+    backgroundColor: RevampedColors.background,
+  },
+  dataCardsContainer: {
+    padding: Spacing.md,
+  },
+  // Nutrition Cards
+  nutritionCard: {
+    backgroundColor: RevampedColors.cardBackground,
     borderRadius: BorderRadius.medium,
     marginBottom: Spacing.sm,
-    shadowColor: Colors.shadow,
+    padding: Spacing.md,
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
   },
-  dayItemContent: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.md,
-  },
-  dayItemHeader: {
+  cardContent: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+  },
+  leftSection: {
+    flex: 1,
+    marginRight: Spacing.md,
+  },
+  rightSection: {
+    alignItems: 'flex-end',
+    minWidth: 80,
+  },
+  metricLabel: {
+    fontSize: FontSizes.medium,
+    fontWeight: '500',
+    color: RevampedColors.textPrimary,
     marginBottom: Spacing.xs,
   },
-  dayItemTitle: {
-    fontSize: FontSizes.large,
-    fontWeight: '600',
-    color: Colors.textPrimary,
-  },
-  dayItemDate: {
-    fontSize: FontSizes.medium,
-    color: Colors.textSecondary,
-  },
-  dayItemStatus: {
-    fontSize: FontSizes.small,
-    marginBottom: Spacing.sm,
-  },
-  dayItemFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  dayItemWeek: {
-    fontSize: FontSizes.small,
-    color: Colors.textSecondary,
-  },
-  dayItemArrow: {
-    fontSize: FontSizes.medium,
-    color: Colors.primary,
+  metricValue: {
+    fontSize: FontSizes.xxlarge,
     fontWeight: 'bold',
+    color: RevampedColors.textPrimary,
   },
+  metricUnit: {
+    fontSize: FontSizes.small,
+    color: RevampedColors.textUnit,
+    marginTop: 2,
+  },
+  // Progress Bar Components
+  progressBarContainer: {
+    marginTop: Spacing.xs,
+  },
+  progressBarBackground: {
+    height: 8,
+    backgroundColor: '#F0F0F0',
+    borderRadius: 4,
+    position: 'relative',
+    marginBottom: Spacing.xs,
+  },
+  recommendationLine: {
+    position: 'absolute',
+    width: 2,
+    height: 12,
+    top: -2,
+    borderRadius: 1,
+  },
+  userActualBar: {
+    height: 8,
+    borderRadius: 4,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+  },
+  tooltipContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.xs,
+  },
+  tooltipText: {
+    fontSize: FontSizes.small,
+    fontWeight: '500',
+  },
+  // Bottom Navigation
+  bottomNav: {
+    flexDirection: 'row',
+    backgroundColor: RevampedColors.cardBackground,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    borderTopWidth: 1,
+    borderTopColor: '#E0E0E0',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  navItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  navIcon: {
+    fontSize: 24,
+    color: RevampedColors.textSecondary,
+  },
+  navLogo: {
+    fontSize: FontSizes.medium,
+    fontWeight: 'bold',
+    color: RevampedColors.textPrimary,
+  },
+  // Loading and Error States
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: Spacing.lg,
+    backgroundColor: RevampedColors.background,
   },
   loadingText: {
-    fontSize: FontSizes.large,
-    color: Colors.white,
+    fontSize: FontSizes.medium,
+    color: RevampedColors.textPrimary,
     marginTop: Spacing.md,
-    textAlign: 'center',
   },
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: RevampedColors.background,
     paddingHorizontal: Spacing.lg,
   },
   errorText: {
     fontSize: FontSizes.medium,
-    color: Colors.white,
+    color: RevampedColors.textPrimary,
     textAlign: 'center',
     marginBottom: Spacing.lg,
   },
   retryButton: {
-    backgroundColor: Colors.white,
+    backgroundColor: RevampedColors.cardBackground,
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.sm,
     borderRadius: BorderRadius.medium,
   },
   retryButtonText: {
     fontSize: FontSizes.medium,
-    color: Colors.primary,
+    color: RevampedColors.textPrimary,
     fontWeight: '600',
-  },
-  noDataContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: Spacing.lg,
-    backgroundColor: Colors.white,
-    margin: Spacing.md,
-    borderRadius: BorderRadius.medium,
-  },
-  noDataText: {
-    fontSize: FontSizes.large,
-    color: Colors.textSecondary,
-    textAlign: 'center',
-    marginBottom: Spacing.xs,
-  },
-  noDataSubtext: {
-    fontSize: FontSizes.medium,
-    color: Colors.textSecondary,
-    textAlign: 'center',
-    opacity: 0.7,
   },
 });
