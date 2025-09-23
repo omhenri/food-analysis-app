@@ -20,7 +20,7 @@ export class AnalysisServiceManager {
     this.config = {
       useMockService: false, // Default to backend integration
       useBackend: true, // Use backend by default
-      backendUrl: __DEV__ ? 'http://localhost:8000' : 'https://your-production-backend.com/api',
+      backendUrl: __DEV__ ? 'http://localhost:8000/api' : 'http://localhost:8000/api',
     };
     this.aiService = AIAnalysisService.getInstance();
     this.mockService = MockAIService.getInstance();
