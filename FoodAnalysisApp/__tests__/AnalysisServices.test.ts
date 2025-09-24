@@ -125,13 +125,13 @@ describe('AnalysisServiceManager', () => {
       expect(manager.isUsingMockService()).toBe(true);
     });
 
-    it('should allow switching to AI service', () => {
-      manager.enableAIService('test-api-key');
+    it('should allow switching to backend service', () => {
+      manager.enableBackendService();
       expect(manager.isUsingMockService()).toBe(false);
     });
 
     it('should allow switching back to mock service', () => {
-      manager.enableAIService('test-api-key');
+      manager.enableBackendService();
       manager.enableMockService();
       expect(manager.isUsingMockService()).toBe(true);
     });

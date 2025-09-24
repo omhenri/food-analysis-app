@@ -9,12 +9,17 @@ export interface BackendFoodItem {
   unit: string;
 }
 
-export interface BackendApiError {
+export class BackendApiError extends Error {
   statusCode: number;
   errorCode: string;
-  message: string;
-}
 
+  constructor(statusCode: number, errorCode: string, message: string) {
+    super(message);
+    this.statusCode = statusCode;
+    this.errorCode = errorCode;
+    this.name = "BackendApiError";
+  }
+}
 export interface BackendResponse<T> {
   success: boolean;
   data?: T;
@@ -66,7 +71,7 @@ export interface BackendRecommendedIntake {
 export class BackendApiService {
   private static instance: BackendApiService;
   private baseUrl: string = 'http://localhost:5000'; // Default backend URL
-  private timeout: number = 30000; // 30 seconds timeout
+  private timeout: number = 300000; // 5 minutes timeout (for OpenRouter responses)
 
   private constructor() {}
 
@@ -120,62 +125,21 @@ export class BackendApiService {
     try {
       console.log('Analyzing foods via backend:', foods);
 
-      // For now, analyze each food individually
-      // In the future, this could be optimized to batch requests
-      const analysisPromises = foods.map(food => this.analyzeSingleFood(food));
-
-      const results = await Promise.all(analysisPromises);
-
-      // Check if any analysis failed
-      const failedResults = results.filter(result => !result.success);
-      if (failedResults.length > 0) {
-        return {
-          success: false,
-          error: `Analysis failed for ${failedResults.length} food(s)`,
-        };
-      }
-
-      // Extract successful data
-      const successfulData = results
-        .filter(result => result.success && result.data)
-        .map(result => result.data!);
-
-      return {
-        success: true,
-        data: successfulData,
-      };
-
-    } catch (error) {
-      console.error('Backend analysis failed:', error);
-      return {
-        success: false,
-        error: `Analysis request failed: ${error}`,
-      };
-    }
-  }
-
-  // Analyze a single food item
-  private async analyzeSingleFood(food: BackendFoodItem): Promise<BackendResponse<BackendAnalysisData>> {
-    try {
-      console.log(`Analyzing food: ${food.name}`);
-
-      // Prepare request payload
-      const payload = {
+      // Convert foods to backend format (array of food objects)
+      const backendFoods = foods.map(food => ({
         food_name: food.name,
-        portion_for_one: this.convertPortionToBoolean(food.portion),
-        // Note: Backend doesn't currently support meal_type in analyze-food endpoint
-        // We'll use analyze-meal endpoint if meal-specific analysis is needed
-      };
+        meal_type: food.mealType,
+      }));
 
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), this.timeout);
 
-      const response = await fetch(`${this.baseUrl}/analyze-food`, {
+      const response = await fetch(`${this.baseUrl}/api/analyze-food`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(backendFoods),
         signal: controller.signal,
       });
 
@@ -190,8 +154,8 @@ export class BackendApiService {
         );
       }
 
-      const data: BackendAnalysisData = await response.json();
-      console.log(`Backend analysis successful for ${food.name}:`, data);
+      const data: BackendAnalysisData[] = await response.json();
+      console.log('Backend analysis successful:', data);
 
       return {
         success: true,
@@ -199,7 +163,7 @@ export class BackendApiService {
       };
 
     } catch (error) {
-      console.error(`Backend analysis failed for ${food.name}:`, error);
+      console.error('Backend analysis failed:', error);
 
       if (error instanceof BackendApiError) {
         return {
@@ -215,6 +179,8 @@ export class BackendApiService {
       };
     }
   }
+
+
 
   // Get recommended intake from backend
   public async getRecommendedIntake(age?: number, gender?: string): Promise<BackendResponse<BackendRecommendedIntake>> {
@@ -332,11 +298,4 @@ export class BackendApiService {
     });
   }
 
-  // Convert app portion format to backend boolean
-  private convertPortionToBoolean(portion: string): boolean {
-    // Convert portion like "1/1", "1/2" to boolean
-    // "1/1" = full portion = true (for one person)
-    // "1/2", "1/3", etc. = partial portion = false (for multiple people)
-    return portion === '1/1';
-  }
 }

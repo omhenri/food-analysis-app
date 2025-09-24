@@ -1353,195 +1353,19 @@ You will receive a JSON array like:
   ...
 ]
 
-GENERAL REQUIREMENTS
-1) Serving is **for one person**. Make a reasonable single-person serving assumption (typical home-style or common recipe). Be deterministic; if ambiguous, pick the most common interpretation and proceed.
-2) Produce an ingredients list with portion_percent values that sum to **100 ± 0.1**.
-3) Report a comprehensive nutrient panel as **grams** for each allowed nutrient key (see ALLOWED_NUTRIENTS below). If a database typically reports mg/µg, convert to grams (e.g., 730 mg → 0.73; 120 µg → 0.00012). If unknown/negligible, set to 0, but still include the key.
-4) For **every** nutrient, include:
-   - full_name
-   - class (one of: "macronutrient" | "fatty_acid" | "amino_acid" | "mineral" | "vitamin" | "bioactive" | "organic_acid" | "sterol" | "sweetener" | "other")
-   - impact (one of: "positive" | "neutral" | "negative") using the defaults in ALLOWED_NUTRIENTS
-   - total_g
-   - by_ingredient: an array of {{ingredient, grams, percent_of_chemical}}
-     • Sum of by_ingredient.grams must equal total_g within ±0.1
-     • Sum of by_ingredient.percent_of_chemical must equal **100 ± 0.1**
-5) Use numeric values only (no units or strings); round to ≤2 decimals unless extremely small (then ≤6 decimals).
-6) Output only a **top-level JSON array** matching the input order. Do not include any extra top-level keys. Do not include commentary or code fences.
-7) Include **all** ALLOWED_NUTRIENTS keys for each dish; if not present, report zeros and an empty by_ingredient array.
-8) Do not invent nutrients beyond the allowed list. Do not omit any allowed keys.
+REQUIREMENTS
+1. Assume a standard **one-person serving** (typical recipe or portion). If ambiguous, pick the most common interpretation.  
+2. The **ingredients** array must list all key components, including main items and extras like *seasonings, oils, condiments, sauces, or garnishes*. Each ingredient has a portion_percent, summing to **100 ± 0.1**.  
+3. The **nutrients_g** object must contain only those nutrients that are > 0 for the dish. For each nutrient, include:
+   - full_name  
+   - class (macronutrient | fatty_acid | amino_acid | mineral | vitamin | bioactive | organic_acid | sterol | sweetener | other)  
+   - impact (positive | neutral | negative)  
+   - total_g (grams, always numeric)  
+   - by_ingredient: list of {{ingredient, grams, percent_of_chemical}} that sums to the nutrient's total_g.  
+4. Units: always grams. Convert mg → g (e.g., 730 mg = 0.73; 120 µg = 0.00012).  
+5. Output only a JSON array, no prose, no markdown, no comments.  
 
-ALLOWED_NUTRIENTS
-Each entry defines the canonical key (use exactly) → {{full_name, class, impact}}.
-
-{{
-  /* Core macros */
-  "water_g": {{"full_name":"Water","class":"macronutrient","impact":"neutral"}},
-  "protein_g": {{"full_name":"Protein","class":"macronutrient","impact":"positive"}},
-  "carbohydrate_g": {{"full_name":"Carbohydrate","class":"macronutrient","impact":"neutral"}},
-  "available_carbohydrate_g": {{"full_name":"Available carbohydrate (by difference)","class":"macronutrient","impact":"neutral"}},
-  "total_sugars_g": {{"full_name":"Total sugars","class":"macronutrient","impact":"neutral"}},
-  "added_sugars_g": {{"full_name":"Added sugars","class":"macronutrient","impact":"negative"}},
-  "glucose_g": {{"full_name":"Glucose (dextrose)","class":"macronutrient","impact":"neutral"}},
-  "fructose_g": {{"full_name":"Fructose","class":"macronutrient","impact":"neutral"}},
-  "sucrose_g": {{"full_name":"Sucrose","class":"macronutrient","impact":"neutral"}},
-  "lactose_g": {{"full_name":"Lactose","class":"macronutrient","impact":"neutral"}},
-  "maltose_g": {{"full_name":"Maltose","class":"macronutrient","impact":"neutral"}},
-  "fiber_g": {{"full_name":"Dietary fiber (total)","class":"macronutrient","impact":"positive"}},
-  "soluble_fiber_g": {{"full_name":"Soluble fiber","class":"macronutrient","impact":"positive"}},
-  "insoluble_fiber_g": {{"full_name":"Insoluble fiber","class":"macronutrient","impact":"positive"}},
-  "resistant_starch_g": {{"full_name":"Resistant starch","class":"macronutrient","impact":"positive"}},
-  "starch_g": {{"full_name":"Starch (digestible)","class":"macronutrient","impact":"neutral"}},
-  "total_fat_g": {{"full_name":"Total fat","class":"macronutrient","impact":"neutral"}},
-  "saturated_fat_g": {{"full_name":"Saturated fatty acids","class":"fatty_acid","impact":"negative"}},
-  "monounsaturated_fat_g": {{"full_name":"Monounsaturated fatty acids (total)","class":"fatty_acid","impact":"positive"}},
-  "polyunsaturated_fat_g": {{"full_name":"Polyunsaturated fatty acids (total)","class":"fatty_acid","impact":"positive"}},
-  "trans_fat_g": {{"full_name":"Trans fatty acids (total)","class":"fatty_acid","impact":"negative"}},
-
-  /* Detailed fatty acids (common) */
-  "ala_g": {{"full_name":"Alpha-linolenic acid (18:3 n-3, ALA)","class":"fatty_acid","impact":"positive"}},
-  "epa_g": {{"full_name":"Eicosapentaenoic acid (20:5 n-3, EPA)","class":"fatty_acid","impact":"positive"}},
-  "dpa_g": {{"full_name":"Docosapentaenoic acid (22:5 n-3, DPA)","class":"fatty_acid","impact":"positive"}},
-  "dha_g": {{"full_name":"Docosahexaenoic acid (22:6 n-3, DHA)","class":"fatty_acid","impact":"positive"}},
-  "omega_3_total_g": {{"full_name":"Omega-3 fatty acids (total)","class":"fatty_acid","impact":"positive"}},
-  "linoleic_acid_g": {{"full_name":"Linoleic acid (18:2 n-6, LA)","class":"fatty_acid","impact":"neutral"}},
-  "gamma_linolenic_acid_g": {{"full_name":"Gamma-linolenic acid (18:3 n-6, GLA)","class":"fatty_acid","impact":"neutral"}},
-  "arachidonic_acid_g": {{"full_name":"Arachidonic acid (20:4 n-6, AA)","class":"fatty_acid","impact":"neutral"}},
-  "omega_6_total_g": {{"full_name":"Omega-6 fatty acids (total)","class":"fatty_acid","impact":"neutral"}},
-  "oleic_acid_g": {{"full_name":"Oleic acid (18:1 n-9)","class":"fatty_acid","impact":"positive"}},
-  "palmitoleic_acid_g": {{"full_name":"Palmitoleic acid (16:1)","class":"fatty_acid","impact":"neutral"}},
-  "palmitic_acid_g": {{"full_name":"Palmitic acid (16:0)","class":"fatty_acid","impact":"negative"}},
-  "stearic_acid_g": {{"full_name":"Stearic acid (18:0)","class":"fatty_acid","impact":"neutral"}},
-  "myristic_acid_g": {{"full_name":"Myristic acid (14:0)","class":"fatty_acid","impact":"negative"}},
-  "lauric_acid_g": {{"full_name":"Lauric acid (12:0)","class":"fatty_acid","impact":"neutral"}},
-  "butyric_acid_g": {{"full_name":"Butyric acid (4:0)","class":"fatty_acid","impact":"neutral"}},
-  "elaidic_acid_g": {{"full_name":"Elaidic acid (18:1 trans)","class":"fatty_acid","impact":"negative"}},
-
-  /* Sterols */
-  "cholesterol_g": {{"full_name":"Cholesterol","class":"sterol","impact":"neutral"}},
-  "phytosterols_g": {{"full_name":"Phytosterols (total)","class":"sterol","impact":"positive"}},
-  "beta_sitosterol_g": {{"full_name":"Beta-sitosterol","class":"sterol","impact":"positive"}},
-  "campesterol_g": {{"full_name":"Campesterol","class":"sterol","impact":"positive"}},
-  "stigmasterol_g": {{"full_name":"Stigmasterol","class":"sterol","impact":"positive"}},
-
-  /* Amino acids */
-  "tryptophan_g": {{"full_name":"Tryptophan","class":"amino_acid","impact":"positive"}},
-  "threonine_g": {{"full_name":"Threonine","class":"amino_acid","impact":"positive"}},
-  "isoleucine_g": {{"full_name":"Isoleucine","class":"amino_acid","impact":"positive"}},
-  "leucine_g": {{"full_name":"Leucine","class":"amino_acid","impact":"positive"}},
-  "lysine_g": {{"full_name":"Lysine","class":"amino_acid","impact":"positive"}},
-  "methionine_g": {{"full_name":"Methionine","class":"amino_acid","impact":"positive"}},
-  "cystine_g": {{"full_name":"Cystine","class":"amino_acid","impact":"positive"}},
-  "phenylalanine_g": {{"full_name":"Phenylalanine","class":"amino_acid","impact":"positive"}},
-  "tyrosine_g": {{"full_name":"Tyrosine","class":"amino_acid","impact":"positive"}},
-  "valine_g": {{"full_name":"Valine","class":"amino_acid","impact":"positive"}},
-  "histidine_g": {{"full_name":"Histidine","class":"amino_acid","impact":"positive"}},
-  "alanine_g": {{"full_name":"Alanine","class":"amino_acid","impact":"positive"}},
-  "arginine_g": {{"full_name":"Arginine","class":"amino_acid","impact":"positive"}},
-  "aspartic_acid_g": {{"full_name":"Aspartic acid","class":"amino_acid","impact":"positive"}},
-  "glutamic_acid_g": {{"full_name":"Glutamic acid","class":"amino_acid","impact":"positive"}},
-  "glycine_g": {{"full_name":"Glycine","class":"amino_acid","impact":"positive"}},
-  "proline_g": {{"full_name":"Proline","class":"amino_acid","impact":"positive"}},
-  "serine_g": {{"full_name":"Serine","class":"amino_acid","impact":"positive"}},
-
-  /* Minerals */
-  "calcium_g": {{"full_name":"Calcium","class":"mineral","impact":"positive"}},
-  "iron_g": {{"full_name":"Iron","class":"mineral","impact":"positive"}},
-  "magnesium_g": {{"full_name":"Magnesium","class":"mineral","impact":"positive"}},
-  "phosphorus_g": {{"full_name":"Phosphorus","class":"mineral","impact":"positive"}},
-  "potassium_g": {{"full_name":"Potassium","class":"mineral","impact":"positive"}},
-  "sodium_g": {{"full_name":"Sodium","class":"mineral","impact":"negative"}},
-  "zinc_g": {{"full_name":"Zinc","class":"mineral","impact":"positive"}},
-  "copper_g": {{"full_name":"Copper","class":"mineral","impact":"positive"}},
-  "manganese_g": {{"full_name":"Manganese","class":"mineral","impact":"positive"}},
-  "selenium_g": {{"full_name":"Selenium","class":"mineral","impact":"positive"}},
-  "iodine_g": {{"full_name":"Iodine","class":"mineral","impact":"positive"}},
-  "chromium_g": {{"full_name":"Chromium","class":"mineral","impact":"positive"}},
-  "molybdenum_g": {{"full_name":"Molybdenum","class":"mineral","impact":"positive"}},
-  "fluoride_g": {{"full_name":"Fluoride","class":"mineral","impact":"neutral"}},
-  "chloride_g": {{"full_name":"Chloride","class":"mineral","impact":"neutral"}},
-  "boron_g": {{"full_name":"Boron","class":"mineral","impact":"neutral"}},
-  "nickel_g": {{"full_name":"Nickel","class":"mineral","impact":"neutral"}},
-  "silicon_g": {{"full_name":"Silicon","class":"mineral","impact":"neutral"}},
-
-  /* Vitamins & provitamins */
-  "vitamin_a_rae_g": {{"full_name":"Vitamin A (RAE)","class":"vitamin","impact":"positive"}},
-  "retinol_g": {{"full_name":"Retinol (Vitamin A)","class":"vitamin","impact":"positive"}},
-  "alpha_carotene_g": {{"full_name":"Alpha-carotene","class":"vitamin","impact":"positive"}},
-  "beta_carotene_g": {{"full_name":"Beta-carotene","class":"vitamin","impact":"positive"}},
-  "beta_cryptoxanthin_g": {{"full_name":"Beta-cryptoxanthin","class":"vitamin","impact":"positive"}},
-  "lutein_zeaxanthin_g": {{"full_name":"Lutein + zeaxanthin","class":"vitamin","impact":"positive"}},
-  "lycopene_g": {{"full_name":"Lycopene","class":"vitamin","impact":"positive"}},
-  "vitamin_c_g": {{"full_name":"Vitamin C (ascorbic acid)","class":"vitamin","impact":"positive"}},
-  "vitamin_d_g": {{"full_name":"Vitamin D (total)","class":"vitamin","impact":"positive"}},
-  "vitamin_d2_g": {{"full_name":"Ergocalciferol (Vitamin D2)","class":"vitamin","impact":"positive"}},
-  "vitamin_d3_g": {{"full_name":"Cholecalciferol (Vitamin D3)","class":"vitamin","impact":"positive"}},
-  "vitamin_e_g": {{"full_name":"Vitamin E (alpha-tocopherol)","class":"vitamin","impact":"positive"}},
-  "gamma_tocopherol_g": {{"full_name":"Gamma-tocopherol","class":"vitamin","impact":"positive"}},
-  "delta_tocopherol_g": {{"full_name":"Delta-tocopherol","class":"vitamin","impact":"positive"}},
-  "alpha_tocotrienol_g": {{"full_name":"Alpha-tocotrienol","class":"vitamin","impact":"positive"}},
-  "gamma_tocotrienol_g": {{"full_name":"Gamma-tocotrienol","class":"vitamin","impact":"positive"}},
-  "vitamin_k_g": {{"full_name":"Vitamin K (total)","class":"vitamin","impact":"positive"}},
-  "vitamin_k1_g": {{"full_name":"Phylloquinone (Vitamin K1)","class":"vitamin","impact":"positive"}},
-  "vitamin_k2_g": {{"full_name":"Menaquinones (Vitamin K2)","class":"vitamin","impact":"positive"}},
-  "thiamin_b1_g": {{"full_name":"Thiamin (Vitamin B1)","class":"vitamin","impact":"positive"}},
-  "riboflavin_b2_g": {{"full_name":"Riboflavin (Vitamin B2)","class":"vitamin","impact":"positive"}},
-  "niacin_b3_g": {{"full_name":"Niacin (Vitamin B3)","class":"vitamin","impact":"positive"}},
-  "pantothenic_acid_b5_g": {{"full_name":"Pantothenic acid (Vitamin B5)","class":"vitamin","impact":"positive"}},
-  "vitamin_b6_g": {{"full_name":"Vitamin B6","class":"vitamin","impact":"positive"}},
-  "biotin_b7_g": {{"full_name":"Biotin (Vitamin B7)","class":"vitamin","impact":"positive"}},
-  "folate_b9_dfe_g": {{"full_name":"Folate (DFE, Vitamin B9)","class":"vitamin","impact":"positive"}},
-  "folic_acid_g": {{"full_name":"Folic acid","class":"vitamin","impact":"positive"}},
-  "vitamin_b12_g": {{"full_name":"Vitamin B12","class":"vitamin","impact":"positive"}},
-  "choline_g": {{"full_name":"Choline","class":"vitamin","impact":"positive"}},
-  "betaine_g": {{"full_name":"Betaine","class":"vitamin","impact":"positive"}},
-
-  /* Bioactives & polyphenols */
-  "caffeine_g": {{"full_name":"Caffeine","class":"bioactive","impact":"neutral"}},
-  "theobromine_g": {{"full_name":"Theobromine","class":"bioactive","impact":"neutral"}},
-  "taurine_g": {{"full_name":"Taurine","class":"bioactive","impact":"neutral"}},
-  "polyphenols_g": {{"full_name":"Polyphenols (total)","class":"bioactive","impact":"positive"}},
-  "flavanols_total_g": {{"full_name":"Flavanols (total)","class":"bioactive","impact":"positive"}},
-  "catechins_total_g": {{"full_name":"Catechins (total)","class":"bioactive","impact":"positive"}},
-  "egcg_g": {{"full_name":"Epigallocatechin gallate (EGCG)","class":"bioactive","impact":"positive"}},
-  "anthocyanins_g": {{"full_name":"Anthocyanins","class":"bioactive","impact":"positive"}},
-  "flavonols_g": {{"full_name":"Flavonols (total)","class":"bioactive","impact":"positive"}},
-  "quercetin_g": {{"full_name":"Quercetin","class":"bioactive","impact":"positive"}},
-  "resveratrol_g": {{"full_name":"Resveratrol","class":"bioactive","impact":"positive"}},
-  "isoflavones_g": {{"full_name":"Isoflavones (total)","class":"bioactive","impact":"positive"}},
-  "genistein_g": {{"full_name":"Genistein","class":"bioactive","impact":"positive"}},
-  "daidzein_g": {{"full_name":"Daidzein","class":"bioactive","impact":"positive"}},
-  "lignans_g": {{"full_name":"Lignans (total)","class":"bioactive","impact":"positive"}},
-  "ellagic_acid_g": {{"full_name":"Ellagic acid","class":"bioactive","impact":"positive"}},
-  "curcumin_g": {{"full_name":"Curcumin","class":"bioactive","impact":"positive"}},
-  "capsaicin_g": {{"full_name":"Capsaicin","class":"bioactive","impact":"neutral"}},
-  "allicin_g": {{"full_name":"Allicin","class":"bioactive","impact":"positive"}},
-
-  /* Organic & other acids */
-  "citric_acid_g": {{"full_name":"Citric acid","class":"organic_acid","impact":"neutral"}},
-  "malic_acid_g": {{"full_name":"Malic acid","class":"organic_acid","impact":"neutral"}},
-  "tartaric_acid_g": {{"full_name":"Tartaric acid","class":"organic_acid","impact":"neutral"}},
-  "oxalic_acid_g": {{"full_name":"Oxalic acid","class":"organic_acid","impact":"neutral"}},
-  "acetic_acid_g": {{"full_name":"Acetic acid","class":"organic_acid","impact":"neutral"}},
-  "lactic_acid_g": {{"full_name":"Lactic acid","class":"organic_acid","impact":"neutral"}},
-  "succinic_acid_g": {{"full_name":"Succinic acid","class":"organic_acid","impact":"neutral"}},
-
-  /* Sweeteners & polyols */
-  "sugar_alcohols_g": {{"full_name":"Sugar alcohols (polyols, total)","class":"sweetener","impact":"neutral"}},
-  "glycerol_g": {{"full_name":"Glycerol","class":"sweetener","impact":"neutral"}},
-  "inulin_g": {{"full_name":"Inulin (fructans)","class":"sweetener","impact":"positive"}},
-  "fructooligosaccharides_g": {{"full_name":"Fructo-oligosaccharides (FOS)","class":"sweetener","impact":"positive"}},
-
-  /* Other/antinutrients/compounds */
-  "alcohol_g": {{"full_name":"Ethanol (alcohol)","class":"other","impact":"negative"}},
-  "nitrate_g": {{"full_name":"Nitrate (NO3-)","class":"other","impact":"neutral"}},
-  "nitrite_g": {{"full_name":"Nitrite (NO2-)","class":"other","impact":"negative"}},
-  "purines_g": {{"full_name":"Purines (total)","class":"other","impact":"neutral"}},
-  "phytate_g": {{"full_name":"Phytic acid (myo-inositol hexakisphosphate)","class":"other","impact":"neutral"}},
-  "ash_g": {{"full_name":"Ash (total minerals)","class":"other","impact":"neutral"}},
-  "gluten_g": {{"full_name":"Gluten (wheat prolamins)","class":"other","impact":"neutral"}}
-}}
-
-OUTPUT SCHEMA (exact keys)
+OUTPUT SCHEMA
 Return a JSON array of objects, each with exactly these keys:
 [
   {{
@@ -1555,7 +1379,7 @@ Return a JSON array of objects, each with exactly these keys:
       {{"name": "string", "portion_percent": 0.0}}
     ],
     "nutrients_g": {{
-      "<any key from ALLOWED_NUTRIENTS>": {{
+      "<nutrient_key>": {{
         "full_name": "string",
         "class": "macronutrient|fatty_acid|amino_acid|mineral|vitamin|bioactive|organic_acid|sterol|sweetener|other",
         "impact": "positive|neutral|negative",
@@ -1564,7 +1388,7 @@ Return a JSON array of objects, each with exactly these keys:
           {{"ingredient": "string", "grams": 0.0, "percent_of_chemical": 0.0}}
         ]
       }}
-      // include ALL allowed nutrient keys, even if total_g is 0.0 (then by_ingredient MUST be [])
+      // DO NOT INCLUDE nutrient if total_g is 0.0
     }}
   }}
 ]
@@ -1573,7 +1397,6 @@ VALIDATION
 - Sum(ingredients.portion_percent) = 100 ± 0.1.
 - For each nutrient: Sum(by_ingredient.grams) = total_g ± 0.1, and Sum(by_ingredient.percent_of_chemical) = 100 ± 0.1 (unless total_g == 0, then by_ingredient MUST be []).
 - All numeric fields are numbers (no strings or units). All nutrient amounts in grams. Convert mg/µg to grams before reporting.
-- Include every nutrient defined in ALLOWED_NUTRIENTS; do not add or remove keys.
 - Output ONLY the final JSON array; no explanations or markdown."""
 
         try:

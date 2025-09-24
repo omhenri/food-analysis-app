@@ -10,7 +10,7 @@ function App(): React.JSX.Element {
     // Initialize services
     const initializeApp = async () => {
       try {
-        // Configure analysis service (using backend by default)
+        // Configure analysis service
         const analysisService = AnalysisServiceManager.getInstance();
 
         // Configure backend URL
@@ -24,14 +24,14 @@ function App(): React.JSX.Element {
           backendUrl = `http://${computerIP}:8000`;
         }
 
-        // Configure backend for AI service
-        const aiService = analysisService['aiService'] as any; // Access private member
-        aiService.configureBackend(backendUrl);
+        // Configure backend for analysis service with extended timeout (10 minutes for OpenRouter responses)
+        const extendedTimeout = 10 * 60 * 1000; // 10 minutes in milliseconds
+        analysisService.configureBackend(backendUrl, extendedTimeout);
 
-        console.log(`Backend configured: ${backendUrl}`);
-
-        // For development, you can enable mock service by uncommenting the line below:
+        // Default to backend service (food-backend only)
+        // For development, you can enable mock service instead:
         // analysisService.enableMockService();
+        console.log(`Analysis service configured with backend: ${backendUrl}, timeout: ${extendedTimeout/1000}s`);
         
         // Initialize database
         const { DatabaseService } = await import('./src/services/DatabaseService');
