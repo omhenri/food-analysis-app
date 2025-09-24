@@ -184,7 +184,7 @@ export const DayDetailScreen: React.FC = () => {
   const handleRecommendationPress = async () => {
     const overdosed = getOverdosedSubstances();
     if (overdosed.length === 0) {
-      Alert.alert('No Over-dosed Substances', 'You don\'t have any substances above recommended levels.');
+      Alert.alert('No Above-recommended Substances', 'You don\'t have any substances above recommended levels.');
       return;
     }
 
@@ -299,7 +299,6 @@ export const DayDetailScreen: React.FC = () => {
       {/* Analysis Results Section */}
       {hasAnalysisData() ? (
         <View style={styles.analysisSection}>
-          <Text style={styles.sectionTitle}>Analysis Results</Text>
           {MEAL_TYPES.map(mealType => {
             if (!hasMealTypeData(mealType)) {
               return null;
@@ -453,7 +452,7 @@ export const DayDetailScreen: React.FC = () => {
             <Text style={styles.backButtonText}>←</Text>
           </TouchableOpacity>
           <View style={styles.titleContainer}>
-            <Text style={styles.title}>Day Details</Text>
+            <Text style={styles.title}>{currentView === 'comparison' ? 'Comparison' : 'Analysis Results'}</Text>
           </View>
           <View style={styles.headerSpacer} />
         </View>
@@ -739,7 +738,7 @@ const styles = StyleSheet.create({
   },
   optimalRangeText: {
     fontSize: FontSizes.small,
-    color: Colors.info,
+    color: Colors.textPrimary,
     fontStyle: 'italic',
   },
   filterContainer: {

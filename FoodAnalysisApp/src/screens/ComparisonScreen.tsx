@@ -124,7 +124,7 @@ export const ComparisonScreen: React.FC<ComparisonScreenProps> = ({
   const handleRecommendationPress = async () => {
     const overdosed = getOverdosedSubstances();
     if (overdosed.length === 0) {
-      Alert.alert('No Over-dosed Substances', 'You don\'t have any substances above recommended levels.');
+      Alert.alert('No Above-recommended Substances', 'You don\'t have any substances above recommended levels.');
       return;
     }
 

@@ -73,7 +73,20 @@ export const MealAnalysisCard: React.FC<MealAnalysisCardProps> = ({
   };
 
 
+  const formatNutrientName = (nutrientName: string): string => {
+    // Special handling for Energy - display as Calories
+    if (nutrientName.toLowerCase().includes('energy')) {
+      return 'Calories';
+    }
+    return nutrientName;
+  };
+
   const formatNutrientAmount = (amount: number, nutrientName: string): string => {
+    // Special handling for Energy - display in calories
+    if (nutrientName.toLowerCase().includes('energy')) {
+      return `${amount.toFixed(0)}cal`;
+    }
+
     // Convert very small amounts to mg or µg for better readability
     if (amount < 0.001) {
       return `${(amount * 1000000).toFixed(0)}µg`;
@@ -103,7 +116,7 @@ export const MealAnalysisCard: React.FC<MealAnalysisCardProps> = ({
 
   const contentHeight = animation.interpolate({
     inputRange: [0, 1],
-    outputRange: [0, 300], // Set a reasonable max height for scrollable content
+    outputRange: [0, 500], // Set a reasonable max height for scrollable content
   });
 
   return (
@@ -150,12 +163,15 @@ export const MealAnalysisCard: React.FC<MealAnalysisCardProps> = ({
                       {foodData.servingInfo.description} ({foodData.servingInfo.grams}g)
                     </Text>
                     {(analysisResults[index] as any)?.portionInfo && (
-                      <View style={styles.portionIndicator}>
-                        <PortionIcon 
+                      <View style={styles.portionWithText}>
+                        <PortionIcon
                           portion={(analysisResults[index] as any).portionInfo.portion}
                           selected={true}
                           size={16}
                         />
+                        <Text style={styles.portionText}>
+                          {(analysisResults[index] as any).portionInfo.portion}
+                        </Text>
                       </View>
                     )}
                   </View>
@@ -195,7 +211,7 @@ export const MealAnalysisCard: React.FC<MealAnalysisCardProps> = ({
                         >
                           {getCategoryIcon(substance.category)}
                         </Text>
-                        <Text style={styles.substanceName}>{substance.name}</Text>
+                        <Text style={styles.substanceName}>{formatNutrientName(substance.name)}</Text>
                       </View>
                       <Text style={styles.substanceAmount}>
                         {formatNutrientAmount(substance.amount, substance.name)}
@@ -280,7 +296,7 @@ const styles = StyleSheet.create({
   servingRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start',
   },
   servingText: {
     fontSize: FontSizes.small,
@@ -288,8 +304,16 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     flex: 1,
   },
-  portionIndicator: {
+  portionWithText: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginLeft: Spacing.xs,
+  },
+  portionText: {
+    fontSize: FontSizes.small,
+    color: Colors.textPrimary,
+    fontWeight: '500',
+    marginLeft: 4,
   },
   ingredientsSection: {
     marginBottom: Spacing.xs,

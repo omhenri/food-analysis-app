@@ -29,6 +29,13 @@ export const Colors = {
   maleRec: '#4299E1', // Blue for male recommendation
   femaleRec: '#ED64A6', // Pink for female recommendation
   userActual: '#6FF3E0', // Teal for user actuals
+
+  // Nutrient Percentage Bar Colors (0-200% range)
+  nutrientExcellent: '#48BB78', // Green (≤50%)
+  nutrientGood: '#68D391', // Pale green (≤80%)
+  nutrientCaution: '#ED8936', // Orange (≤110%)
+  nutrientWarning: '#DD6B20', // Burnt orange (≤140%)
+  nutrientDanger: '#F56565', // Red (>140%)
 };
 
 export const Spacing = {

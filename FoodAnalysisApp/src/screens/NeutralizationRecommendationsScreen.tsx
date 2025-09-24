@@ -56,7 +56,7 @@ export const NeutralizationRecommendationsScreen: React.FC = () => {
             <Text style={styles.substanceName}>{item.substance}</Text>
             {item.foods && (
               <View style={styles.recommendationDetails}>
-                <Text style={styles.detailLabel}>Foods:</Text>
+                <Text style={styles.detailLabel}>Neutralize with:</Text>
                 {item.foods.map((food: string, foodIndex: number) => (
                   <Text key={foodIndex} style={styles.detailText}>• {food}</Text>
                 ))}
@@ -64,7 +64,7 @@ export const NeutralizationRecommendationsScreen: React.FC = () => {
             )}
             {item.activities && (
               <View style={styles.recommendationDetails}>
-                <Text style={styles.detailLabel}>Activities:</Text>
+                <Text style={styles.detailLabel}>Neutralize with:</Text>
                 {item.activities.map((activity: string, activityIndex: number) => (
                   <Text key={activityIndex} style={styles.detailText}>• {activity}</Text>
                 ))}
@@ -75,7 +75,7 @@ export const NeutralizationRecommendationsScreen: React.FC = () => {
             )}
             {item.drinks && (
               <View style={styles.recommendationDetails}>
-                <Text style={styles.detailLabel}>Drinks:</Text>
+                <Text style={styles.detailLabel}>Neutralize with:</Text>
                 {item.drinks.map((drink: string, drinkIndex: number) => (
                   <Text key={drinkIndex} style={styles.detailText}>• {drink}</Text>
                 ))}
@@ -86,7 +86,7 @@ export const NeutralizationRecommendationsScreen: React.FC = () => {
             )}
             {item.supplements && (
               <View style={styles.recommendationDetails}>
-                <Text style={styles.detailLabel}>Supplements:</Text>
+                <Text style={styles.detailLabel}>Neutralize with:</Text>
                 {item.supplements.map((supplement: string, supplementIndex: number) => (
                   <Text key={supplementIndex} style={styles.detailText}>• {supplement}</Text>
                 ))}
@@ -100,7 +100,7 @@ export const NeutralizationRecommendationsScreen: React.FC = () => {
             )}
             {item.advice && (
               <View style={styles.recommendationDetails}>
-                <Text style={styles.detailLabel}>Advice:</Text>
+                <Text style={styles.detailLabel}>Neutralize with:</Text>
                 {item.advice.map((advice: string, adviceIndex: number) => (
                   <Text key={adviceIndex} style={styles.detailText}>• {advice}</Text>
                 ))}
@@ -158,7 +158,7 @@ export const NeutralizationRecommendationsScreen: React.FC = () => {
               Based on your nutrient analysis, here are targeted recommendations to help neutralize excess substances in your diet.
             </Text>
             <Text style={styles.overdosedText}>
-              Over-dosed substances: {recommendations.overdosed_substances.join(', ')}
+              Above-recommended substances: {recommendations.overdosed_substances.join(', ')}
             </Text>
             {/* Disclaimer */}
             <Text style={styles.disclaimerTitle}>⚠️ Important Disclaimer</Text>

@@ -230,7 +230,7 @@ export const WeeklyReportScreen: React.FC = () => {
   const handleRecommendationPress = async () => {
     const overdosed = getOverdosedSubstances();
     if (overdosed.length === 0) {
-      Alert.alert('No Over-dosed Substances', 'You don\'t have any substances above recommended levels for this week.');
+      Alert.alert('No Above-recommended Substances', 'You don\'t have any substances above recommended levels for this week.');
       return;
     }
 
@@ -508,7 +508,7 @@ const styles = StyleSheet.create({
   },
   optimalRangeText: {
     fontSize: FontSizes.small,
-    color: Colors.info,
+    color: Colors.textPrimary,
     fontStyle: 'italic',
   },
   filterContainer: {

@@ -45,10 +45,12 @@ export const FoodInputScreen: React.FC<FoodInputScreenProps> = ({
       return;
     }
 
+    // Use the meal type from the last food item
+    const lastFood = foods[foods.length - 1];
     const newFood: FoodItem = {
       id: generateFoodId(),
       name: '',
-      mealType: 'breakfast',
+      mealType: lastFood.mealType, // Use previous meal type
       portion: '1/1',
     };
     setFoods([...foods, newFood]);

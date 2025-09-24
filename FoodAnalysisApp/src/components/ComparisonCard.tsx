@@ -53,7 +53,20 @@ export const ComparisonCard: React.FC<ComparisonCardProps> = ({
     }
   };
 
+  const formatSubstanceName = (substanceName: string): string => {
+    // Special handling for Energy - display as Calories
+    if (substanceName.toLowerCase().includes('energy')) {
+      return 'Calories';
+    }
+    return substanceName;
+  };
+
   const formatAmount = (amount: number): string => {
+    // Special handling for Energy - display in calories
+    if (comparisonData.substance.toLowerCase().includes('energy')) {
+      return `${amount.toFixed(0)}cal`;
+    }
+
     if (amount >= 1) {
       return `${amount.toFixed(1)}g`;
     } else if (amount >= 0.001) {
@@ -68,8 +81,15 @@ export const ComparisonCard: React.FC<ComparisonCardProps> = ({
       return '0%';
     }
     
-    const percentage = Math.min((comparisonData.consumed / comparisonData.recommended) * 100, 200);
-    return `${percentage}%`;
+    // Calculate actual percentage
+    const actualPercentage = (comparisonData.consumed / comparisonData.recommended) * 100;
+    
+    // Cap at 200% and scale to fit within 100% width of progress bar
+    // 0% consumption = 0% width, 100% consumption = 50% width, 200% consumption = 100% width
+    const cappedPercentage = Math.min(actualPercentage, 200);
+    const scaledWidth = (cappedPercentage / 200) * 100; // Scale 0-200% to 0-100% width
+    
+    return `${scaledWidth}%`;
   };
 
   const getProgressBarColor = (): string => {
@@ -79,11 +99,17 @@ export const ComparisonCard: React.FC<ComparisonCardProps> = ({
     
     const percentage = (comparisonData.consumed / comparisonData.recommended) * 100;
     
-    // Green if percentage is 50% or below, red if above 50%
+    // New color scheme based on percentage ranges
     if (percentage <= 50) {
-      return Colors.success; // Green
+      return Colors.nutrientExcellent; // Green (≤50%)
+    } else if (percentage <= 80) {
+      return Colors.nutrientGood; // Pale green (≤80%)
+    } else if (percentage <= 110) {
+      return Colors.nutrientCaution; // Orange (≤110%)
+    } else if (percentage <= 140) {
+      return Colors.nutrientWarning; // Burnt orange (≤140%)
     } else {
-      return Colors.error; // Red
+      return Colors.nutrientDanger; // Red (>140%)
     }
   };
 
@@ -91,7 +117,7 @@ export const ComparisonCard: React.FC<ComparisonCardProps> = ({
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.substanceName}>{comparisonData.substance}</Text>
+        <Text style={styles.substanceName}>{formatSubstanceName(comparisonData.substance)}</Text>
         <View style={styles.statusContainer}>
           <Text style={styles.statusIcon}>{getStatusIcon(comparisonData.status)}</Text>
           <Text style={[styles.statusText, { color: getStatusColor(comparisonData.status) }]}>
@@ -137,11 +163,13 @@ export const ComparisonCard: React.FC<ComparisonCardProps> = ({
                 }
               ]}
             />
+            {/* Optimal target line at 50% (representing 100% intake) */}
+            <View style={styles.targetLine} />
           </View>
           <View style={styles.progressLabels}>
-            <Text style={styles.progressLabel}>0%</Text>
-            <Text style={styles.progressLabel}>50%</Text>
-            <Text style={styles.progressLabel}>100%</Text>
+            <Text style={styles.leftProgressLabel}>0%</Text>
+            <Text style={styles.centerProgressLabel}>  100%</Text>
+            <Text style={styles.rightProgressLabel}>200%</Text>
           </View>
         </View>
       )}
@@ -217,6 +245,15 @@ const styles = StyleSheet.create({
     height: '100%',
     borderRadius: 4,
   },
+  targetLine: {
+    position: 'absolute',
+    left: '50%',
+    top: 0,
+    bottom: 0,
+    width: 2,
+    backgroundColor: Colors.textPrimary,
+    opacity: 0.6,
+  },
   progressLabels: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -225,5 +262,24 @@ const styles = StyleSheet.create({
   progressLabel: {
     fontSize: 10,
     color: Colors.textSecondary,
+    minWidth:30
+  },
+  leftProgressLabel: {
+    fontSize: 10,
+    color: Colors.textSecondary,
+    textAlign: 'left',
+    minWidth:60
+  },
+  centerProgressLabel: {
+    fontSize: 10,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    minWidth:60
+  },
+  rightProgressLabel: {
+    fontSize: 10,
+    color: Colors.textSecondary,
+    textAlign: 'right',
+    minWidth:60
   },
 });
