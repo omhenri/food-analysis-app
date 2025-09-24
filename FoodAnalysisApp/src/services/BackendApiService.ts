@@ -230,16 +230,18 @@ export class BackendApiService {
     }
 
     return backendResponse.data.map((data, index) => {
-      // Convert ingredients to string array
+      // Convert ingredients to string array and keep detailed info
       const ingredients = data.ingredients.map(ing => ing.name);
+      const ingredientDetails = data.ingredients;
 
       // Convert comprehensive nutrients to ChemicalSubstances
       const chemicalSubstances: ChemicalSubstance[] = [];
 
       // Extract key nutrients to display (prioritize macronutrients and important micros)
+      // Note: Backend uses nutrient names without '_g' suffix
       const priorityNutrients = [
-        'protein_g', 'carbohydrate_g', 'total_fat_g', 'fiber_g',
-        'vitamin_c_g', 'calcium_g', 'iron_g', 'sodium_g', 'potassium_g'
+        'protein', 'fat', 'saturated_fat', 'monounsaturated_fat', 'polyunsaturated_fat',
+        'cholesterol', 'sodium', 'potassium', 'phosphorus', 'niacin', 'vitamin_b6'
       ];
 
       priorityNutrients.forEach(nutrientKey => {
@@ -264,9 +266,9 @@ export class BackendApiService {
       });
 
       // Add a few more important nutrients if space allows
-      const additionalNutrients = ['magnesium_g', 'zinc_g', 'vitamin_a_rae_g', 'vitamin_d_g'];
+      const additionalNutrients = ['iron', 'magnesium', 'riboflavin', 'thiamin', 'vitamin_b12', 'zinc'];
       additionalNutrients.forEach(nutrientKey => {
-        if (data.nutrients_g[nutrientKey] && data.nutrients_g[nutrientKey].total_g > 0 && chemicalSubstances.length < 12) {
+        if (data.nutrients_g[nutrientKey] && data.nutrients_g[nutrientKey].total_g > 0 && chemicalSubstances.length < 16) {
           const nutrient = data.nutrients_g[nutrientKey];
 
           let category: 'good' | 'bad' | 'neutral' = 'neutral';
@@ -289,6 +291,7 @@ export class BackendApiService {
         foodId: data.food_name, // Use food name as ID for display
         foodEntryId: 0, // Will be set when saving to database
         ingredients,
+        ingredientDetails,
         chemicalSubstances,
         analyzedAt: new Date().toISOString(),
         // Add additional fields for richer display

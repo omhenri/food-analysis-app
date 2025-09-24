@@ -54,6 +54,10 @@ export interface AnalysisResult {
   foodEntryId: number;
   foodId: string;
   ingredients: string[];
+  ingredientDetails?: Array<{
+    name: string;
+    portion_percent: number;
+  }>;
   chemicalSubstances: ChemicalSubstance[];
   analyzedAt?: string;
   // Additional fields for comprehensive analysis

@@ -61,10 +61,22 @@ export const MealAnalysisCard: React.FC<MealAnalysisCardProps> = ({
   };
 
 
+  const formatNutrientAmount = (amount: number, nutrientName: string): string => {
+    // Convert very small amounts to mg or µg for better readability
+    if (amount < 0.001) {
+      return `${(amount * 1000000).toFixed(0)}µg`;
+    } else if (amount < 0.1) {
+      return `${(amount * 1000).toFixed(0)}mg`;
+    } else {
+      return `${amount.toFixed(1)}g`;
+    }
+  };
+
   const groupSubstancesByFood = () => {
     return analysisResults.map(result => ({
       foodName: result.foodId, // Using foodId as name for now
       ingredients: result.ingredients,
+      ingredientDetails: result.ingredientDetails, // Add detailed ingredient info
       substances: result.chemicalSubstances,
       servingInfo: result.servingInfo,
       detailedNutrients: result.detailedNutrients,
@@ -111,9 +123,19 @@ export const MealAnalysisCard: React.FC<MealAnalysisCardProps> = ({
               {/* Ingredients */}
               <View style={styles.ingredientsSection}>
                 <Text style={styles.sectionTitle}>Ingredients:</Text>
-                <Text style={styles.ingredientsList}>
-                  {foodData.ingredients.join(', ')}
-                </Text>
+                {foodData.ingredientDetails ? (
+                  <View>
+                    {foodData.ingredientDetails.map((ingredient, idx) => (
+                      <Text key={idx} style={styles.ingredientItem}>
+                        • {ingredient.name} ({ingredient.portion_percent.toFixed(1)}%)
+                      </Text>
+                    ))}
+                  </View>
+                ) : (
+                  <Text style={styles.ingredientsList}>
+                    {foodData.ingredients.join(', ')}
+                  </Text>
+                )}
               </View>
 
               {/* Chemical Substances */}
@@ -133,7 +155,7 @@ export const MealAnalysisCard: React.FC<MealAnalysisCardProps> = ({
                       <Text style={styles.substanceName}>{substance.name}</Text>
                     </View>
                     <Text style={styles.substanceAmount}>
-                      {substance.amount.toFixed(1)}g
+                      {formatNutrientAmount(substance.amount, substance.name)}
                     </Text>
                   </View>
                 ))}
@@ -225,6 +247,12 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
     lineHeight: 18,
   },
+  ingredientItem: {
+    fontSize: FontSizes.small,
+    color: Colors.textPrimary,
+    lineHeight: 18,
+    marginBottom: 2,
+  },
   substancesSection: {
     marginTop: Spacing.xs,
   },
@@ -256,7 +284,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   additionalNutrientsText: {
-    fontSize: FontSizes.xsmall,
+    fontSize: FontSizes.small,
     color: Colors.inactive,
     fontStyle: 'italic',
     marginTop: 4,

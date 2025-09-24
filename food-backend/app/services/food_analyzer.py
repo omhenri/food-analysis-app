@@ -1342,8 +1342,17 @@ class FoodAnalyzer:
         """
         Use the comprehensive nutritional analysis prompt to analyze foods
         """
-        # Comprehensive prompt from foodanalyze.txt
-        prompt = f"""You are a nutrition analyzer.
+        # Comprehensive prompt from foodanalyze.txt with enhanced JSON completion requirements
+        prompt = f"""You are a nutrition analyzer. You MUST output COMPLETE, VALID JSON only.
+
+CRITICAL JSON REQUIREMENTS:
+- Output ONLY a valid JSON array - no text before or after
+- Count your braces: every {{ must have a matching }}
+- Count your brackets: every [ must have a matching ]
+- Ensure ALL objects are properly closed
+- If response would be too long, reduce nutrient count but maintain valid structure
+- Validate your JSON mentally before finishing: can it be parsed?
+
 Goal: For each food item, output a **strict JSON** record for a **single-person serving**, with ingredients, portion %, and a comprehensive set of nutrients (macros, fatty acids, amino acids, minerals, vitamins, bioactives, organic/other compounds). Every nutrient value must be in **grams**, with **per-ingredient** contributions and a **nutrient impact** tag (positive | neutral | negative). Output **JSON only** (no prose, no markdown).
 
 INPUT
@@ -1397,7 +1406,15 @@ VALIDATION
 - Sum(ingredients.portion_percent) = 100 ± 0.1.
 - For each nutrient: Sum(by_ingredient.grams) = total_g ± 0.1, and Sum(by_ingredient.percent_of_chemical) = 100 ± 0.1 (unless total_g == 0, then by_ingredient MUST be []).
 - All numeric fields are numbers (no strings or units). All nutrient amounts in grams. Convert mg/µg to grams before reporting.
-- Output ONLY the final JSON array; no explanations or markdown."""
+
+CRITICAL: Before finishing your response, validate that your JSON is complete and parseable:
+1. Count opening and closing braces: every {{ must have a }}
+2. Count opening and closing brackets: every [ must have a ]
+3. Ensure no trailing commas before closing braces/brackets
+4. Test that the JSON can be parsed successfully
+5. If the response would be too long, prioritize core nutrients (protein, carbs, fat, fiber, vitamins C/A/D, minerals Ca/Fe/K) and omit less critical ones, but maintain valid structure
+
+Output ONLY the final JSON array; no explanations, no markdown, no additional text."""
 
         try:
             response = self.client.chat.completions.create(
@@ -1430,15 +1447,172 @@ VALIDATION
                     logger.warning("Response is not a JSON array")
                     raise json.JSONDecodeError("Response is not a JSON array", response_text, 0)
 
+                # Validate the detailed structure of the parsed data
+                if not self._validate_response_structure(parsed_data, len(foods)):
+                    logger.warning("JSON has invalid structure")
+                    raise json.JSONDecodeError("JSON has invalid structure", response_text, 0)
+
                 return parsed_data
 
             except json.JSONDecodeError as e:
                 logger.error(f"Failed to parse comprehensive analysis JSON response: {str(e)}")
+
+                # Try to repair incomplete JSON
+                repaired_json = self._repair_incomplete_json(json_content)
+                if repaired_json:
+                    logger.info("Successfully repaired incomplete JSON, retrying parse...")
+                    try:
+                        parsed_data = json.loads(repaired_json)
+
+                        # Validate that we got the expected structure
+                        if not isinstance(parsed_data, list):
+                            logger.warning("Repaired response is not a JSON array")
+                            raise json.JSONDecodeError("Repaired response is not a JSON array", repaired_json, 0)
+
+                        # Validate the structure of the parsed data
+                        if not self._validate_response_structure(parsed_data, len(foods)):
+                            logger.warning("Repaired JSON has invalid structure")
+                            raise json.JSONDecodeError("Repaired JSON has invalid structure", repaired_json, 0)
+
+                        logger.info("Successfully parsed and validated repaired JSON response")
+                        return parsed_data
+                    except json.JSONDecodeError as repair_error:
+                        logger.error(f"Failed to parse even repaired JSON: {str(repair_error)}")
+
                 raise
 
         except Exception as e:
             logger.error(f"Error in comprehensive food analysis: {str(e)}")
             raise
+
+    def _repair_incomplete_json(self, json_str: str) -> str | None:
+        """
+        Attempt to repair incomplete JSON responses from AI models.
+        Handles common truncation issues like missing closing braces/brackets.
+        """
+        try:
+            # Count braces and brackets to identify what's missing
+            open_braces = json_str.count('{')
+            close_braces = json_str.count('}')
+            open_brackets = json_str.count('[')
+            close_brackets = json_str.count(']')
+
+            logger.info(f"JSON structure counts - braces: {open_braces}/{close_braces}, brackets: {open_brackets}/{close_brackets}")
+
+            # If counts don't match, try to add missing closers
+            repaired = json_str
+
+            # Add missing closing braces
+            while open_braces > close_braces:
+                repaired += '}'
+                close_braces += 1
+                logger.info("Added missing closing brace")
+
+            # Add missing closing brackets
+            while open_brackets > close_brackets:
+                repaired += ']'
+                close_brackets += 1
+                logger.info("Added missing closing bracket")
+
+            # Try to balance any remaining structural issues
+            repaired = self._balance_json_structure(repaired)
+
+            # Test if the repaired JSON is valid
+            try:
+                json.loads(repaired)
+                logger.info("Repaired JSON is valid")
+                return repaired
+            except json.JSONDecodeError as e:
+                logger.warning(f"Repaired JSON still invalid: {str(e)}")
+                return None
+
+        except Exception as e:
+            logger.error(f"Error during JSON repair: {str(e)}")
+            return None
+
+    def _balance_json_structure(self, json_str: str) -> str:
+        """
+        Attempt to balance JSON structure by fixing common issues.
+        """
+        try:
+            # Remove trailing commas before closing braces/brackets
+            import re
+            json_str = re.sub(r',(\s*[}\]])', r'\1', json_str)
+
+            # Fix incomplete objects/arrays at the end
+            lines = json_str.split('\n')
+            last_line = lines[-1].strip() if lines else ""
+
+            # If last line ends with a colon or comma, it's likely incomplete
+            if last_line.endswith(':') or last_line.endswith(','):
+                # Remove the incomplete line
+                lines = lines[:-1]
+                json_str = '\n'.join(lines)
+
+                # Close any open structures
+                open_count = json_str.count('{') + json_str.count('[') - json_str.count('}') - json_str.count(']')
+                for _ in range(open_count):
+                    if json_str.count('{') > json_str.count('}'):
+                        json_str += '}'
+                    elif json_str.count('[') > json_str.count(']'):
+                        json_str += ']'
+
+            return json_str
+
+        except Exception as e:
+            logger.error(f"Error balancing JSON structure: {str(e)}")
+            return json_str
+
+    def _validate_response_structure(self, data: List[Dict[str, Any]], expected_count: int) -> bool:
+        """
+        Validate that the parsed JSON response has the correct structure.
+        """
+        try:
+            if not isinstance(data, list):
+                logger.warning("Response is not a list")
+                return False
+
+            if len(data) != expected_count:
+                logger.warning(f"Expected {expected_count} food items, got {len(data)}")
+                return False
+
+            required_keys = {"food_name", "meal_type", "serving", "ingredients", "nutrients_g"}
+
+            for i, food_item in enumerate(data):
+                if not isinstance(food_item, dict):
+                    logger.warning(f"Food item {i} is not a dictionary")
+                    return False
+
+                # Check required top-level keys
+                missing_keys = required_keys - set(food_item.keys())
+                if missing_keys:
+                    logger.warning(f"Food item {i} missing keys: {missing_keys}")
+                    return False
+
+                # Validate serving structure
+                serving = food_item.get("serving", {})
+                if not isinstance(serving, dict) or "description" not in serving or "grams" not in serving:
+                    logger.warning(f"Food item {i} has invalid serving structure")
+                    return False
+
+                # Validate ingredients structure
+                ingredients = food_item.get("ingredients", [])
+                if not isinstance(ingredients, list) or len(ingredients) == 0:
+                    logger.warning(f"Food item {i} has invalid ingredients structure")
+                    return False
+
+                # Validate nutrients_g structure
+                nutrients_g = food_item.get("nutrients_g", {})
+                if not isinstance(nutrients_g, dict):
+                    logger.warning(f"Food item {i} has invalid nutrients_g structure")
+                    return False
+
+            logger.info(f"Response structure validation passed for {len(data)} food items")
+            return True
+
+        except Exception as e:
+            logger.error(f"Error validating response structure: {str(e)}")
+            return False
 
     def _get_mock_comprehensive_response(self, foods: List[Dict[str, str]]) -> List[Dict[str, Any]]:
         """Return mock comprehensive response when API key is not available"""
