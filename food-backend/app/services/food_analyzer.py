@@ -75,112 +75,8 @@ class FoodAnalyzer:
             # Return fallback response
             return self._get_fallback_response(food_name)
 
-    def extract_ingredients(self, food_name: str) -> List[Dict[str, Any]]:
-        """
-        Extract ingredients from food name using focused AI prompt
-        Returns list of ingredient objects with name and optional quantity
-        """
-        try:
-            if self.use_mock:
-                return self._get_mock_ingredients(food_name)
 
-            # Single focused extraction call
-            ingredients_data = self._extract_ingredients_ai(food_name)
-            print(f"Extracted {len(ingredients_data)} ingredients from {food_name}")
 
-            return ingredients_data
-
-        except Exception as e:
-            logger.error(f"Error extracting ingredients for {food_name}: {str(e)}")
-            # Return fallback ingredients
-            return self._get_fallback_ingredients(food_name)
-
-    def analyze_ingredients(self, ingredients: List[str], user_profile=None, portion_for_one: bool = True) -> Dict[str, Any]:
-        """
-        Analyze food based on provided ingredient list
-        Returns structured response with substances, tips, and relationships
-        """
-        try:
-            if self.use_mock:
-                return self._get_mock_response_with_profile("Custom Recipe", user_profile)
-
-            # Convert ingredient list to formatted string for AI
-            ingredients_text = self._format_ingredients_for_analysis(ingredients)
-
-            # Get comprehensive analysis based on ingredients
-            substances, substance_relationships, mitigation_tips, categorized_tips = self._analyze_ingredients_ai(
-                ingredients_text, portion_for_one, user_profile
-            )
-
-            print(f"Analyzed {len(ingredients)} ingredients: {ingredients}")
-            print(f"Found {len(substances)} substances and {len(categorized_tips)} tips")
-
-            # Create response with selected ingredients
-            ingredient_quantities = []
-            for ingredient in ingredients:
-                ingredient_quantities.append(IngredientQuantity(
-                    name=ingredient,
-                    original_amount=None,
-                    gram_amount=None,
-                    per_person=portion_for_one
-                ))
-
-            return FoodAnalysisResponse(
-                ingredients=ingredients,
-                ingredient_quantities=ingredient_quantities,
-                substances=substances,
-                substance_relationships=substance_relationships,
-                mitigation_tips=mitigation_tips,
-                categorized_tips=categorized_tips,
-                disclaimer=self.disclaimer,
-                portion_for_one=portion_for_one,
-                personalized_recommendations=None
-            ).to_dict()
-
-        except Exception as e:
-            logger.error(f"Error analyzing ingredients: {str(e)}")
-            # Return fallback response
-            return self._get_fallback_response("Custom Recipe")
-
-    def analyze_meal(self, food_name: str, meal_type: str) -> Dict[str, Any]:
-        """
-        Analyze a meal using single AI prompt for both ingredients and substances
-        Returns structured response with ingredients and substances for meal tracking
-        """
-        try:
-            if self.use_mock:
-                return self._get_mock_meal_response(food_name, meal_type)
-
-            # Single comprehensive analysis call for meal
-            ingredients, substances = self._analyze_meal_ai(food_name, meal_type)
-            print(f"Meal Analysis - {food_name} ({meal_type}): {len(ingredients)} ingredients, {len(substances)} substances")
-
-            from app.models.response_models import MealAnalysisResponse, MealIngredient, MealSubstance
-
-            # Convert to response model
-            meal_ingredients = [MealIngredient(name=ing['name'], quantity=ing['quantity']) for ing in ingredients]
-            meal_substances = [MealSubstance(
-                name=sub['name'],
-                quantity=sub['quantity'],
-                unit=sub['unit'],
-                category=sub['category'],
-                standard_consumption=sub['standard_consumption'],
-                health_impact=sub['health_impact']
-            ) for sub in substances]
-
-            response = MealAnalysisResponse(
-                food_name=food_name,
-                meal_type=meal_type,
-                ingredients=meal_ingredients,
-                substances=meal_substances
-            )
-
-            return response.to_dict()
-
-        except Exception as e:
-            logger.error(f"Error analyzing meal {food_name} ({meal_type}): {str(e)}")
-            # Return fallback response
-            return self._get_fallback_meal_response(food_name, meal_type)
 
     def analyze_food_with_profile(self, analysis_request: FoodAnalysisRequest) -> Dict[str, Any]:
         """
@@ -341,144 +237,6 @@ class FoodAnalyzer:
                 ]
             )
 
-    def _analyze_meal_ai(self, food_name: str, meal_type: str) -> tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
-        """
-        Analyze a meal in a single AI call for both ingredients and substances
-        Returns: (ingredients, substances)
-        """
-        prompt = f"""
-        Analyze the meal "{food_name}" being eaten as {meal_type}.
-        Return ONLY a valid JSON object with the following structure:
-
-        {{
-          "ingredients": [
-            {{"name": "ingredient_name", "quantity": "quantity_description"}},
-            {{"name": "another_ingredient", "quantity": "quantity_description"}}
-          ],
-          "substances": [
-            {{
-              "name": "substance_name",
-              "quantity": 100.0,
-              "unit": "mg",
-              "category": "vitamin",
-              "standard_consumption": 90.0,
-              "health_impact": "positive"
-            }},
-            {{
-              "name": "another_substance",
-              "quantity": 50.0,
-              "unit": "g",
-              "category": "mineral",
-              "standard_consumption": 75.0,
-              "health_impact": "neutral"
-            }}
-          ]
-        }}
-
-        Guidelines:
-        - ingredients: Main ingredients with realistic quantities (3-8 ingredients)
-        - substances: Key nutrients with quantities, units, categories, and standard consumption for 18-29 year old adults
-        - standard_consumption: Daily recommended amount for healthy adults
-        - health_impact: "positive", "neutral", or "negative"
-        - categories: "vitamin", "mineral", "protein", "carbohydrate", "fat", "antioxidant", "fiber", etc.
-
-        Return ONLY valid JSON, no additional text or formatting.
-        """
-
-        try:
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {"role": "system", "content": "You are a nutrition expert. Always return valid JSON responses with the exact structure requested."},
-                    {"role": "user", "content": prompt}
-                ],
-                max_tokens=800,
-                temperature=0.3
-            )
-
-            response_text = response.choices[0].message.content.strip()
-
-            # Parse JSON response
-            try:
-                # Clean up response text to extract JSON
-                json_start = response_text.find('{')
-                json_end = response_text.rfind('}') + 1
-
-                if json_start == -1 or json_end == 0:
-                    logger.warning(f"No JSON object found in response: {response_text}")
-                    raise json.JSONDecodeError("No JSON object found", response_text, 0)
-
-                json_content = response_text[json_start:json_end]
-                parsed_data = json.loads(json_content)
-
-                # Extract data from JSON structure
-                ingredients = parsed_data.get('ingredients', [])
-                substances = parsed_data.get('substances', [])
-
-                # Validate structure
-                if not isinstance(ingredients, list):
-                    ingredients = []
-                if not isinstance(substances, list):
-                    substances = []
-
-                # Ensure each ingredient has required fields
-                validated_ingredients = []
-                for ing in ingredients:
-                    if isinstance(ing, dict) and 'name' in ing and 'quantity' in ing:
-                        validated_ingredients.append({
-                            'name': str(ing['name']),
-                            'quantity': str(ing['quantity'])
-                        })
-
-                # Ensure each substance has required fields with defaults
-                validated_substances = []
-                for sub in substances:
-                    if isinstance(sub, dict):
-                        validated_substances.append({
-                            'name': str(sub.get('name', 'Unknown')),
-                            'quantity': float(sub.get('quantity', 0.0)),
-                            'unit': str(sub.get('unit', 'mg')),
-                            'category': str(sub.get('category', 'general')),
-                            'standard_consumption': float(sub.get('standard_consumption', 100.0)),
-                            'health_impact': str(sub.get('health_impact', 'neutral'))
-                        })
-
-                # Ensure we have reasonable defaults
-                if not validated_ingredients:
-                    validated_ingredients = [
-                        {'name': 'Unable to determine ingredients', 'quantity': 'N/A'}
-                    ]
-                if not validated_substances:
-                    validated_substances = [
-                        {
-                            'name': 'Analysis not available',
-                            'quantity': 0.0,
-                            'unit': 'N/A',
-                            'category': 'general',
-                            'standard_consumption': 100.0,
-                            'health_impact': 'neutral'
-                        }
-                    ]
-
-                return validated_ingredients, validated_substances
-
-            except json.JSONDecodeError as e:
-                logger.error(f"Failed to parse JSON response: {response_text}, Error: {str(e)}")
-                raise  # Re-raise to be caught by outer exception handler
-
-        except Exception as e:
-            logger.error(f"Error in meal analysis: {str(e)}")
-            return (
-                [{'name': 'Unable to determine ingredients', 'quantity': 'N/A'}],
-                [{
-                    'name': 'Analysis not available',
-                    'quantity': 0.0,
-                    'unit': 'N/A',
-                    'category': 'general',
-                    'standard_consumption': 100.0,
-                    'health_impact': 'neutral'
-                }]
-            )
 
     def _analyze_food_with_quantities(self, food_name: str, portion_for_one: bool = True) -> tuple[List[str], List[IngredientQuantity], List[str], List[str]]:
         """
@@ -1561,531 +1319,374 @@ class FoodAnalyzer:
             portion_for_one=True
         ).to_dict()
 
-    def _extract_ingredients_ai(self, food_name: str) -> List[Dict[str, Any]]:
+    def analyze_foods_comprehensive(self, foods: List[Dict[str, str]]) -> List[Dict[str, Any]]:
         """
-        Extract ingredients from food name using AI
-        Returns structured list of ingredient objects
+        Analyze multiple foods using comprehensive nutritional analysis with detailed prompt
+        Returns: List of food analysis objects with detailed nutritional data
         """
-        prompt = f"""
-        Extract ONLY the essential, main ingredients for the food: "{food_name}"
+        try:
+            if self.use_mock:
+                return self._get_mock_comprehensive_response(foods)
 
-        IMPORTANT INSTRUCTIONS:
-        - ONLY include main, essential ingredients (no optional ingredients)
-        - EXCLUDE any optional, alternative, or garnish ingredients
-        - EXCLUDE any "to taste" seasonings that are not measured
-        - Focus on core ingredients that define the dish
-        - Include measured quantities when standard (e.g., "200g chicken", "1 cup rice")
-        - For seasonings, only include those with specific measurements
+            # Use the comprehensive nutritional analysis prompt
+            result = self._analyze_foods_with_comprehensive_prompt(foods)
+            print(f"Comprehensive analysis completed for {len(result)} foods")
+            return result
 
-        Return the result as a JSON array of objects with this EXACT format:
+        except Exception as e:
+            logger.error(f"Error in comprehensive food analysis: {str(e)}")
+            # Return fallback response
+            return self._get_fallback_comprehensive_response(foods)
 
-        [
-          {{"name": "chicken breast", "quantity": "200g"}},
-          {{"name": "rice", "quantity": "1 cup"}},
-          {{"name": "soy sauce", "quantity": "2 tbsp"}},
-          {{"name": "vegetable oil", "quantity": "1 tbsp"}},
-          {{"name": "garlic", "quantity": "2 cloves"}}
+    def _analyze_foods_with_comprehensive_prompt(self, foods: List[Dict[str, str]]) -> List[Dict[str, Any]]:
+        """
+        Use the comprehensive nutritional analysis prompt to analyze foods
+        """
+        # Comprehensive prompt from foodanalyze.txt
+        prompt = f"""You are a nutrition analyzer.
+Goal: For each food item, output a **strict JSON** record for a **single-person serving**, with ingredients, portion %, and a comprehensive set of nutrients (macros, fatty acids, amino acids, minerals, vitamins, bioactives, organic/other compounds). Every nutrient value must be in **grams**, with **per-ingredient** contributions and a **nutrient impact** tag (positive | neutral | negative). Output **JSON only** (no prose, no markdown).
+
+INPUT
+You will receive a JSON array like:
+[
+  {{"food_name":"string","meal_type":"breakfast|lunch|dinner|snack"}},
+  ...
+]
+
+GENERAL REQUIREMENTS
+1) Serving is **for one person**. Make a reasonable single-person serving assumption (typical home-style or common recipe). Be deterministic; if ambiguous, pick the most common interpretation and proceed.
+2) Produce an ingredients list with portion_percent values that sum to **100 ± 0.1**.
+3) Report a comprehensive nutrient panel as **grams** for each allowed nutrient key (see ALLOWED_NUTRIENTS below). If a database typically reports mg/µg, convert to grams (e.g., 730 mg → 0.73; 120 µg → 0.00012). If unknown/negligible, set to 0, but still include the key.
+4) For **every** nutrient, include:
+   - full_name
+   - class (one of: "macronutrient" | "fatty_acid" | "amino_acid" | "mineral" | "vitamin" | "bioactive" | "organic_acid" | "sterol" | "sweetener" | "other")
+   - impact (one of: "positive" | "neutral" | "negative") using the defaults in ALLOWED_NUTRIENTS
+   - total_g
+   - by_ingredient: an array of {{ingredient, grams, percent_of_chemical}}
+     • Sum of by_ingredient.grams must equal total_g within ±0.1
+     • Sum of by_ingredient.percent_of_chemical must equal **100 ± 0.1**
+5) Use numeric values only (no units or strings); round to ≤2 decimals unless extremely small (then ≤6 decimals).
+6) Output only a **top-level JSON array** matching the input order. Do not include any extra top-level keys. Do not include commentary or code fences.
+7) Include **all** ALLOWED_NUTRIENTS keys for each dish; if not present, report zeros and an empty by_ingredient array.
+8) Do not invent nutrients beyond the allowed list. Do not omit any allowed keys.
+
+ALLOWED_NUTRIENTS
+Each entry defines the canonical key (use exactly) → {{full_name, class, impact}}.
+
+{{
+  /* Core macros */
+  "water_g": {{"full_name":"Water","class":"macronutrient","impact":"neutral"}},
+  "protein_g": {{"full_name":"Protein","class":"macronutrient","impact":"positive"}},
+  "carbohydrate_g": {{"full_name":"Carbohydrate","class":"macronutrient","impact":"neutral"}},
+  "available_carbohydrate_g": {{"full_name":"Available carbohydrate (by difference)","class":"macronutrient","impact":"neutral"}},
+  "total_sugars_g": {{"full_name":"Total sugars","class":"macronutrient","impact":"neutral"}},
+  "added_sugars_g": {{"full_name":"Added sugars","class":"macronutrient","impact":"negative"}},
+  "glucose_g": {{"full_name":"Glucose (dextrose)","class":"macronutrient","impact":"neutral"}},
+  "fructose_g": {{"full_name":"Fructose","class":"macronutrient","impact":"neutral"}},
+  "sucrose_g": {{"full_name":"Sucrose","class":"macronutrient","impact":"neutral"}},
+  "lactose_g": {{"full_name":"Lactose","class":"macronutrient","impact":"neutral"}},
+  "maltose_g": {{"full_name":"Maltose","class":"macronutrient","impact":"neutral"}},
+  "fiber_g": {{"full_name":"Dietary fiber (total)","class":"macronutrient","impact":"positive"}},
+  "soluble_fiber_g": {{"full_name":"Soluble fiber","class":"macronutrient","impact":"positive"}},
+  "insoluble_fiber_g": {{"full_name":"Insoluble fiber","class":"macronutrient","impact":"positive"}},
+  "resistant_starch_g": {{"full_name":"Resistant starch","class":"macronutrient","impact":"positive"}},
+  "starch_g": {{"full_name":"Starch (digestible)","class":"macronutrient","impact":"neutral"}},
+  "total_fat_g": {{"full_name":"Total fat","class":"macronutrient","impact":"neutral"}},
+  "saturated_fat_g": {{"full_name":"Saturated fatty acids","class":"fatty_acid","impact":"negative"}},
+  "monounsaturated_fat_g": {{"full_name":"Monounsaturated fatty acids (total)","class":"fatty_acid","impact":"positive"}},
+  "polyunsaturated_fat_g": {{"full_name":"Polyunsaturated fatty acids (total)","class":"fatty_acid","impact":"positive"}},
+  "trans_fat_g": {{"full_name":"Trans fatty acids (total)","class":"fatty_acid","impact":"negative"}},
+
+  /* Detailed fatty acids (common) */
+  "ala_g": {{"full_name":"Alpha-linolenic acid (18:3 n-3, ALA)","class":"fatty_acid","impact":"positive"}},
+  "epa_g": {{"full_name":"Eicosapentaenoic acid (20:5 n-3, EPA)","class":"fatty_acid","impact":"positive"}},
+  "dpa_g": {{"full_name":"Docosapentaenoic acid (22:5 n-3, DPA)","class":"fatty_acid","impact":"positive"}},
+  "dha_g": {{"full_name":"Docosahexaenoic acid (22:6 n-3, DHA)","class":"fatty_acid","impact":"positive"}},
+  "omega_3_total_g": {{"full_name":"Omega-3 fatty acids (total)","class":"fatty_acid","impact":"positive"}},
+  "linoleic_acid_g": {{"full_name":"Linoleic acid (18:2 n-6, LA)","class":"fatty_acid","impact":"neutral"}},
+  "gamma_linolenic_acid_g": {{"full_name":"Gamma-linolenic acid (18:3 n-6, GLA)","class":"fatty_acid","impact":"neutral"}},
+  "arachidonic_acid_g": {{"full_name":"Arachidonic acid (20:4 n-6, AA)","class":"fatty_acid","impact":"neutral"}},
+  "omega_6_total_g": {{"full_name":"Omega-6 fatty acids (total)","class":"fatty_acid","impact":"neutral"}},
+  "oleic_acid_g": {{"full_name":"Oleic acid (18:1 n-9)","class":"fatty_acid","impact":"positive"}},
+  "palmitoleic_acid_g": {{"full_name":"Palmitoleic acid (16:1)","class":"fatty_acid","impact":"neutral"}},
+  "palmitic_acid_g": {{"full_name":"Palmitic acid (16:0)","class":"fatty_acid","impact":"negative"}},
+  "stearic_acid_g": {{"full_name":"Stearic acid (18:0)","class":"fatty_acid","impact":"neutral"}},
+  "myristic_acid_g": {{"full_name":"Myristic acid (14:0)","class":"fatty_acid","impact":"negative"}},
+  "lauric_acid_g": {{"full_name":"Lauric acid (12:0)","class":"fatty_acid","impact":"neutral"}},
+  "butyric_acid_g": {{"full_name":"Butyric acid (4:0)","class":"fatty_acid","impact":"neutral"}},
+  "elaidic_acid_g": {{"full_name":"Elaidic acid (18:1 trans)","class":"fatty_acid","impact":"negative"}},
+
+  /* Sterols */
+  "cholesterol_g": {{"full_name":"Cholesterol","class":"sterol","impact":"neutral"}},
+  "phytosterols_g": {{"full_name":"Phytosterols (total)","class":"sterol","impact":"positive"}},
+  "beta_sitosterol_g": {{"full_name":"Beta-sitosterol","class":"sterol","impact":"positive"}},
+  "campesterol_g": {{"full_name":"Campesterol","class":"sterol","impact":"positive"}},
+  "stigmasterol_g": {{"full_name":"Stigmasterol","class":"sterol","impact":"positive"}},
+
+  /* Amino acids */
+  "tryptophan_g": {{"full_name":"Tryptophan","class":"amino_acid","impact":"positive"}},
+  "threonine_g": {{"full_name":"Threonine","class":"amino_acid","impact":"positive"}},
+  "isoleucine_g": {{"full_name":"Isoleucine","class":"amino_acid","impact":"positive"}},
+  "leucine_g": {{"full_name":"Leucine","class":"amino_acid","impact":"positive"}},
+  "lysine_g": {{"full_name":"Lysine","class":"amino_acid","impact":"positive"}},
+  "methionine_g": {{"full_name":"Methionine","class":"amino_acid","impact":"positive"}},
+  "cystine_g": {{"full_name":"Cystine","class":"amino_acid","impact":"positive"}},
+  "phenylalanine_g": {{"full_name":"Phenylalanine","class":"amino_acid","impact":"positive"}},
+  "tyrosine_g": {{"full_name":"Tyrosine","class":"amino_acid","impact":"positive"}},
+  "valine_g": {{"full_name":"Valine","class":"amino_acid","impact":"positive"}},
+  "histidine_g": {{"full_name":"Histidine","class":"amino_acid","impact":"positive"}},
+  "alanine_g": {{"full_name":"Alanine","class":"amino_acid","impact":"positive"}},
+  "arginine_g": {{"full_name":"Arginine","class":"amino_acid","impact":"positive"}},
+  "aspartic_acid_g": {{"full_name":"Aspartic acid","class":"amino_acid","impact":"positive"}},
+  "glutamic_acid_g": {{"full_name":"Glutamic acid","class":"amino_acid","impact":"positive"}},
+  "glycine_g": {{"full_name":"Glycine","class":"amino_acid","impact":"positive"}},
+  "proline_g": {{"full_name":"Proline","class":"amino_acid","impact":"positive"}},
+  "serine_g": {{"full_name":"Serine","class":"amino_acid","impact":"positive"}},
+
+  /* Minerals */
+  "calcium_g": {{"full_name":"Calcium","class":"mineral","impact":"positive"}},
+  "iron_g": {{"full_name":"Iron","class":"mineral","impact":"positive"}},
+  "magnesium_g": {{"full_name":"Magnesium","class":"mineral","impact":"positive"}},
+  "phosphorus_g": {{"full_name":"Phosphorus","class":"mineral","impact":"positive"}},
+  "potassium_g": {{"full_name":"Potassium","class":"mineral","impact":"positive"}},
+  "sodium_g": {{"full_name":"Sodium","class":"mineral","impact":"negative"}},
+  "zinc_g": {{"full_name":"Zinc","class":"mineral","impact":"positive"}},
+  "copper_g": {{"full_name":"Copper","class":"mineral","impact":"positive"}},
+  "manganese_g": {{"full_name":"Manganese","class":"mineral","impact":"positive"}},
+  "selenium_g": {{"full_name":"Selenium","class":"mineral","impact":"positive"}},
+  "iodine_g": {{"full_name":"Iodine","class":"mineral","impact":"positive"}},
+  "chromium_g": {{"full_name":"Chromium","class":"mineral","impact":"positive"}},
+  "molybdenum_g": {{"full_name":"Molybdenum","class":"mineral","impact":"positive"}},
+  "fluoride_g": {{"full_name":"Fluoride","class":"mineral","impact":"neutral"}},
+  "chloride_g": {{"full_name":"Chloride","class":"mineral","impact":"neutral"}},
+  "boron_g": {{"full_name":"Boron","class":"mineral","impact":"neutral"}},
+  "nickel_g": {{"full_name":"Nickel","class":"mineral","impact":"neutral"}},
+  "silicon_g": {{"full_name":"Silicon","class":"mineral","impact":"neutral"}},
+
+  /* Vitamins & provitamins */
+  "vitamin_a_rae_g": {{"full_name":"Vitamin A (RAE)","class":"vitamin","impact":"positive"}},
+  "retinol_g": {{"full_name":"Retinol (Vitamin A)","class":"vitamin","impact":"positive"}},
+  "alpha_carotene_g": {{"full_name":"Alpha-carotene","class":"vitamin","impact":"positive"}},
+  "beta_carotene_g": {{"full_name":"Beta-carotene","class":"vitamin","impact":"positive"}},
+  "beta_cryptoxanthin_g": {{"full_name":"Beta-cryptoxanthin","class":"vitamin","impact":"positive"}},
+  "lutein_zeaxanthin_g": {{"full_name":"Lutein + zeaxanthin","class":"vitamin","impact":"positive"}},
+  "lycopene_g": {{"full_name":"Lycopene","class":"vitamin","impact":"positive"}},
+  "vitamin_c_g": {{"full_name":"Vitamin C (ascorbic acid)","class":"vitamin","impact":"positive"}},
+  "vitamin_d_g": {{"full_name":"Vitamin D (total)","class":"vitamin","impact":"positive"}},
+  "vitamin_d2_g": {{"full_name":"Ergocalciferol (Vitamin D2)","class":"vitamin","impact":"positive"}},
+  "vitamin_d3_g": {{"full_name":"Cholecalciferol (Vitamin D3)","class":"vitamin","impact":"positive"}},
+  "vitamin_e_g": {{"full_name":"Vitamin E (alpha-tocopherol)","class":"vitamin","impact":"positive"}},
+  "gamma_tocopherol_g": {{"full_name":"Gamma-tocopherol","class":"vitamin","impact":"positive"}},
+  "delta_tocopherol_g": {{"full_name":"Delta-tocopherol","class":"vitamin","impact":"positive"}},
+  "alpha_tocotrienol_g": {{"full_name":"Alpha-tocotrienol","class":"vitamin","impact":"positive"}},
+  "gamma_tocotrienol_g": {{"full_name":"Gamma-tocotrienol","class":"vitamin","impact":"positive"}},
+  "vitamin_k_g": {{"full_name":"Vitamin K (total)","class":"vitamin","impact":"positive"}},
+  "vitamin_k1_g": {{"full_name":"Phylloquinone (Vitamin K1)","class":"vitamin","impact":"positive"}},
+  "vitamin_k2_g": {{"full_name":"Menaquinones (Vitamin K2)","class":"vitamin","impact":"positive"}},
+  "thiamin_b1_g": {{"full_name":"Thiamin (Vitamin B1)","class":"vitamin","impact":"positive"}},
+  "riboflavin_b2_g": {{"full_name":"Riboflavin (Vitamin B2)","class":"vitamin","impact":"positive"}},
+  "niacin_b3_g": {{"full_name":"Niacin (Vitamin B3)","class":"vitamin","impact":"positive"}},
+  "pantothenic_acid_b5_g": {{"full_name":"Pantothenic acid (Vitamin B5)","class":"vitamin","impact":"positive"}},
+  "vitamin_b6_g": {{"full_name":"Vitamin B6","class":"vitamin","impact":"positive"}},
+  "biotin_b7_g": {{"full_name":"Biotin (Vitamin B7)","class":"vitamin","impact":"positive"}},
+  "folate_b9_dfe_g": {{"full_name":"Folate (DFE, Vitamin B9)","class":"vitamin","impact":"positive"}},
+  "folic_acid_g": {{"full_name":"Folic acid","class":"vitamin","impact":"positive"}},
+  "vitamin_b12_g": {{"full_name":"Vitamin B12","class":"vitamin","impact":"positive"}},
+  "choline_g": {{"full_name":"Choline","class":"vitamin","impact":"positive"}},
+  "betaine_g": {{"full_name":"Betaine","class":"vitamin","impact":"positive"}},
+
+  /* Bioactives & polyphenols */
+  "caffeine_g": {{"full_name":"Caffeine","class":"bioactive","impact":"neutral"}},
+  "theobromine_g": {{"full_name":"Theobromine","class":"bioactive","impact":"neutral"}},
+  "taurine_g": {{"full_name":"Taurine","class":"bioactive","impact":"neutral"}},
+  "polyphenols_g": {{"full_name":"Polyphenols (total)","class":"bioactive","impact":"positive"}},
+  "flavanols_total_g": {{"full_name":"Flavanols (total)","class":"bioactive","impact":"positive"}},
+  "catechins_total_g": {{"full_name":"Catechins (total)","class":"bioactive","impact":"positive"}},
+  "egcg_g": {{"full_name":"Epigallocatechin gallate (EGCG)","class":"bioactive","impact":"positive"}},
+  "anthocyanins_g": {{"full_name":"Anthocyanins","class":"bioactive","impact":"positive"}},
+  "flavonols_g": {{"full_name":"Flavonols (total)","class":"bioactive","impact":"positive"}},
+  "quercetin_g": {{"full_name":"Quercetin","class":"bioactive","impact":"positive"}},
+  "resveratrol_g": {{"full_name":"Resveratrol","class":"bioactive","impact":"positive"}},
+  "isoflavones_g": {{"full_name":"Isoflavones (total)","class":"bioactive","impact":"positive"}},
+  "genistein_g": {{"full_name":"Genistein","class":"bioactive","impact":"positive"}},
+  "daidzein_g": {{"full_name":"Daidzein","class":"bioactive","impact":"positive"}},
+  "lignans_g": {{"full_name":"Lignans (total)","class":"bioactive","impact":"positive"}},
+  "ellagic_acid_g": {{"full_name":"Ellagic acid","class":"bioactive","impact":"positive"}},
+  "curcumin_g": {{"full_name":"Curcumin","class":"bioactive","impact":"positive"}},
+  "capsaicin_g": {{"full_name":"Capsaicin","class":"bioactive","impact":"neutral"}},
+  "allicin_g": {{"full_name":"Allicin","class":"bioactive","impact":"positive"}},
+
+  /* Organic & other acids */
+  "citric_acid_g": {{"full_name":"Citric acid","class":"organic_acid","impact":"neutral"}},
+  "malic_acid_g": {{"full_name":"Malic acid","class":"organic_acid","impact":"neutral"}},
+  "tartaric_acid_g": {{"full_name":"Tartaric acid","class":"organic_acid","impact":"neutral"}},
+  "oxalic_acid_g": {{"full_name":"Oxalic acid","class":"organic_acid","impact":"neutral"}},
+  "acetic_acid_g": {{"full_name":"Acetic acid","class":"organic_acid","impact":"neutral"}},
+  "lactic_acid_g": {{"full_name":"Lactic acid","class":"organic_acid","impact":"neutral"}},
+  "succinic_acid_g": {{"full_name":"Succinic acid","class":"organic_acid","impact":"neutral"}},
+
+  /* Sweeteners & polyols */
+  "sugar_alcohols_g": {{"full_name":"Sugar alcohols (polyols, total)","class":"sweetener","impact":"neutral"}},
+  "glycerol_g": {{"full_name":"Glycerol","class":"sweetener","impact":"neutral"}},
+  "inulin_g": {{"full_name":"Inulin (fructans)","class":"sweetener","impact":"positive"}},
+  "fructooligosaccharides_g": {{"full_name":"Fructo-oligosaccharides (FOS)","class":"sweetener","impact":"positive"}},
+
+  /* Other/antinutrients/compounds */
+  "alcohol_g": {{"full_name":"Ethanol (alcohol)","class":"other","impact":"negative"}},
+  "nitrate_g": {{"full_name":"Nitrate (NO3-)","class":"other","impact":"neutral"}},
+  "nitrite_g": {{"full_name":"Nitrite (NO2-)","class":"other","impact":"negative"}},
+  "purines_g": {{"full_name":"Purines (total)","class":"other","impact":"neutral"}},
+  "phytate_g": {{"full_name":"Phytic acid (myo-inositol hexakisphosphate)","class":"other","impact":"neutral"}},
+  "ash_g": {{"full_name":"Ash (total minerals)","class":"other","impact":"neutral"}},
+  "gluten_g": {{"full_name":"Gluten (wheat prolamins)","class":"other","impact":"neutral"}}
+}}
+
+OUTPUT SCHEMA (exact keys)
+Return a JSON array of objects, each with exactly these keys:
+[
+  {{
+    "food_name": "string",
+    "meal_type": "breakfast|lunch|dinner|snack",
+    "serving": {{
+      "description": "string",
+      "grams": 0.0
+    }},
+    "ingredients": [
+      {{"name": "string", "portion_percent": 0.0}}
+    ],
+    "nutrients_g": {{
+      "<any key from ALLOWED_NUTRIENTS>": {{
+        "full_name": "string",
+        "class": "macronutrient|fatty_acid|amino_acid|mineral|vitamin|bioactive|organic_acid|sterol|sweetener|other",
+        "impact": "positive|neutral|negative",
+        "total_g": 0.0,
+        "by_ingredient": [
+          {{"ingredient": "string", "grams": 0.0, "percent_of_chemical": 0.0}}
         ]
+      }}
+      // include ALL allowed nutrient keys, even if total_g is 0.0 (then by_ingredient MUST be [])
+    }}
+  }}
+]
 
-        CRITICAL:
-        - Return ONLY valid JSON array
-        - NO optional ingredients
-        - NO "to taste" items
-        - NO garnish items
-        - NO alternative ingredients
-        - Each ingredient must have both "name" and "quantity" fields
-        - Quantity can be "null" if no standard measurement exists
-        - Maximum 8-10 core ingredients only
-        """
+VALIDATION
+- Sum(ingredients.portion_percent) = 100 ± 0.1.
+- For each nutrient: Sum(by_ingredient.grams) = total_g ± 0.1, and Sum(by_ingredient.percent_of_chemical) = 100 ± 0.1 (unless total_g == 0, then by_ingredient MUST be []).
+- All numeric fields are numbers (no strings or units). All nutrient amounts in grams. Convert mg/µg to grams before reporting.
+- Include every nutrient defined in ALLOWED_NUTRIENTS; do not add or remove keys.
+- Output ONLY the final JSON array; no explanations or markdown."""
 
         try:
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=[
-                    {"role": "system", "content": "You are a culinary expert that extracts ingredients from food names. Provide comprehensive, accurate ingredient lists with quantities."},
-                    {"role": "user", "content": prompt}
+                    {"role": "system", "content": "You are a professional nutritionist and food scientist with access to comprehensive nutritional databases. Provide accurate, detailed nutritional analysis with precise measurements."},
+                    {"role": "user", "content": f"{prompt}\n\n{json.dumps(foods)}"}
                 ],
-                max_tokens=1000,
-                temperature=0.3
+                max_tokens=12000,  # Increased for comprehensive analysis
+                temperature=0.1  # Low temperature for consistency
             )
 
             response_text = response.choices[0].message.content.strip()
-
-            # Parse the JSON response
+            print(response_text)
+            # Parse JSON response
             try:
-                # Clean up the response text to extract JSON
+                # Clean up response text to extract JSON
                 json_start = response_text.find('[')
                 json_end = response_text.rfind(']') + 1
 
                 if json_start == -1 or json_end == 0:
-                    logger.warning(f"No JSON array found in response: {response_text}")
-                    return self._get_fallback_ingredients(food_name)
-
-                json_content = response_text[json_start:json_end]
-
-                # Parse the JSON
-                ingredients_data = []
-                parsed_ingredients = json.loads(json_content)
-
-                for ingredient in parsed_ingredients:
-                    if isinstance(ingredient, dict) and 'name' in ingredient:
-                        ingredients_data.append({
-                            'name': ingredient['name'].strip(),
-                            'quantity': ingredient.get('quantity'),
-                            'selected': True,  # Default to selected
-                            'is_custom': False  # AI-extracted
-                        })
-
-                # Validate and limit ingredients
-                if len(ingredients_data) == 0:
-                    logger.warning("No valid ingredients found in JSON response")
-                    return self._get_fallback_ingredients(food_name)
-
-                return ingredients_data[:10]  # Limit to 10 core ingredients
-
-            except json.JSONDecodeError as e:
-                logger.error(f"Failed to parse JSON response: {response_text}, Error: {str(e)}")
-                return self._get_fallback_ingredients(food_name)
-            except Exception as e:
-                logger.error(f"Error processing ingredient response: {str(e)}")
-                return self._get_fallback_ingredients(food_name)
-
-        except Exception as e:
-            logger.error(f"Error in AI ingredient extraction: {str(e)}")
-            return self._get_fallback_ingredients(food_name)
-
-    def _get_mock_ingredients(self, food_name: str) -> List[Dict[str, Any]]:
-        """Return mock ingredients when API key is not available"""
-        # Base mock ingredients for stir-fry type dishes
-        mock_ingredients = [
-            {"name": "chicken breast", "quantity": "200g", "selected": True, "is_custom": False},
-            {"name": "rice", "quantity": "1 cup", "selected": True, "is_custom": False},
-            {"name": "soy sauce", "quantity": "2 tbsp", "selected": True, "is_custom": False},
-            {"name": "vegetable oil", "quantity": "1 tbsp", "selected": True, "is_custom": False},
-            {"name": "garlic", "quantity": "2 cloves", "selected": True, "is_custom": False},
-            {"name": "ginger", "quantity": "1 tsp", "selected": True, "is_custom": False},
-            {"name": "bell pepper", "quantity": "1 medium", "selected": True, "is_custom": False},
-            {"name": "onion", "quantity": "1 medium", "selected": True, "is_custom": False}
-        ]
-
-        # Customize based on food name - only essential ingredients
-        if "pizza" in food_name.lower():
-            mock_ingredients = [
-                {"name": "pizza dough", "quantity": "1 ball", "selected": True, "is_custom": False},
-                {"name": "tomato sauce", "quantity": "1/2 cup", "selected": True, "is_custom": False},
-                {"name": "mozzarella cheese", "quantity": "200g", "selected": True, "is_custom": False},
-                {"name": "pepperoni", "quantity": "100g", "selected": True, "is_custom": False},
-                {"name": "bell pepper", "quantity": "1/2 cup", "selected": True, "is_custom": False},
-                {"name": "olive oil", "quantity": "1 tbsp", "selected": True, "is_custom": False}
-            ]
-        elif "salad" in food_name.lower():
-            mock_ingredients = [
-                {"name": "mixed greens", "quantity": "4 cups", "selected": True, "is_custom": False},
-                {"name": "cherry tomatoes", "quantity": "1 cup", "selected": True, "is_custom": False},
-                {"name": "cucumber", "quantity": "1 medium", "selected": True, "is_custom": False},
-                {"name": "red onion", "quantity": "1/4 cup", "selected": True, "is_custom": False},
-                {"name": "feta cheese", "quantity": "50g", "selected": True, "is_custom": False},
-                {"name": "olive oil", "quantity": "2 tbsp", "selected": True, "is_custom": False}
-            ]
-        elif "pasta" in food_name.lower():
-            mock_ingredients = [
-                {"name": "pasta", "quantity": "200g", "selected": True, "is_custom": False},
-                {"name": "tomato sauce", "quantity": "1 cup", "selected": True, "is_custom": False},
-                {"name": "ground beef", "quantity": "150g", "selected": True, "is_custom": False},
-                {"name": "onion", "quantity": "1 medium", "selected": True, "is_custom": False},
-                {"name": "garlic", "quantity": "2 cloves", "selected": True, "is_custom": False},
-                {"name": "olive oil", "quantity": "2 tbsp", "selected": True, "is_custom": False}
-            ]
-        elif "soup" in food_name.lower():
-            mock_ingredients = [
-                {"name": "chicken broth", "quantity": "4 cups", "selected": True, "is_custom": False},
-                {"name": "chicken breast", "quantity": "200g", "selected": True, "is_custom": False},
-                {"name": "carrots", "quantity": "2 medium", "selected": True, "is_custom": False},
-                {"name": "celery", "quantity": "2 stalks", "selected": True, "is_custom": False},
-                {"name": "onion", "quantity": "1 medium", "selected": True, "is_custom": False},
-                {"name": "garlic", "quantity": "2 cloves", "selected": True, "is_custom": False}
-            ]
-
-        return mock_ingredients
-
-    def _get_fallback_ingredients(self, food_name: str) -> List[Dict[str, Any]]:
-        """Return fallback ingredients when extraction fails"""
-        return [
-            {"name": f"Unable to extract ingredients for {food_name}", "quantity": None, "selected": True, "is_custom": False},
-            {"name": "Please try again or add ingredients manually", "quantity": None, "selected": True, "is_custom": False}
-        ]
-
-    def _format_ingredients_for_analysis(self, ingredients: List[str]) -> str:
-        """
-        Format ingredient list for AI analysis
-        Converts list to readable format for prompts
-        """
-        if not ingredients:
-            return "No ingredients provided"
-
-        formatted = []
-        for i, ingredient in enumerate(ingredients, 1):
-            formatted.append(f"{i}. {ingredient}")
-
-        return "\n".join(formatted)
-
-    def _analyze_ingredients_ai(self, ingredients_text: str, portion_for_one: bool = True, user_profile=None) -> tuple[List[str], List[SubstanceRelationship], List[str], List[CategorizedTip]]:
-        """
-        Analyze ingredients using AI to get substances, relationships, and tips with structured JSON response
-        Returns: (substances, substance_relationships, mitigation_tips, categorized_tips)
-        """
-        portion_text = "for one person" if portion_for_one else "for multiple people (scale down to single serving)"
-
-        # Include profile information for personalization
-        profile_text = ""
-        if user_profile:
-            profile_text = f"""
-            User Profile Information:
-            - Age group: {user_profile.age_group}
-            - Weight: {user_profile.weight} cm
-            - Height: {user_profile.height} cm
-
-            Consider appropriate portion sizes based on the user's age group and physical characteristics.
-            """
-
-        prompt = f"""
-        Analyze the following ingredients and provide a complete nutritional breakdown {portion_text}.
-        {profile_text}
-
-        INGREDIENTS:
-        {ingredients_text}
-
-        Return ONLY a valid JSON object with the following structure:
-
-        {{
-          "substances": ["Vitamin C", "protein", "sodium", "fiber", "antioxidants"],
-          "relationships": [
-            {{
-              "name": "Vitamin C",
-              "category": "vitamin",
-              "health_impact": "positive",
-              "total_quantity": 90,
-              "unit": "mg",
-              "contributions": [
-                {{
-                  "ingredient_name": "bell pepper",
-                  "quantity_grams": 60,
-                  "contribution_percentage": 67,
-                  "relationship_type": "primary"
-                }},
-                {{
-                  "ingredient_name": "broccoli",
-                  "quantity_grams": 25,
-                  "contribution_percentage": 28,
-                  "relationship_type": "secondary"
-                }}
-              ]
-            }},
-            {{
-              "name": "Sodium",
-              "category": "mineral",
-              "health_impact": "negative",
-              "total_quantity": 800,
-              "unit": "mg",
-              "contributions": [
-                {{
-                  "ingredient_name": "soy sauce",
-                  "quantity_grams": 700,
-                  "contribution_percentage": 88,
-                  "relationship_type": "primary"
-                }}
-              ]
-            }}
-          ],
-          "tips": ["Consider the sodium content from soy sauce - use low-sodium version", "The garlic provides beneficial antioxidants", "This combination provides good protein-vegetable balance"]
-        }}
-
-        Focus on:
-        - ALL absorbable substances (positive, neutral, negative health impacts) (maximum 8)
-        - Realistic quantities for {portion_text}
-        - Accurate categorization of health impacts
-        - Complete ingredient-substance relationship mapping
-        - Nutritional interactions between the specific ingredients provided
-        - Practical health tips considering all substances present (maximum 4)
-
-        Health impact categories:
-        - positive: beneficial for health (e.g., Vitamin C, fiber, antioxidants, omega-3, protein)
-        - neutral: neither clearly beneficial nor harmful (e.g., water, some minerals in normal amounts)
-        - negative: potentially harmful or should be limited (e.g., excess sodium, trans fats, artificial additives, excess sugar)
-
-        Return ONLY valid JSON, no additional text or formatting.
-        """
-
-        print(prompt)
-        try:
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {"role": "system", "content": "You are a professional nutritionist and food scientist. Analyze the given ingredients with expertise in nutritional biochemistry, food composition, and dietary health impacts. Provide detailed, evidence-based nutritional analysis with precise measurements and health impact assessments."},
-                    {"role": "user", "content": prompt}
-                ],
-                max_tokens=2000,  # Increased for comprehensive analysis
-                temperature=0.3
-            )
-
-            response_text = response.choices[0].message.content.strip()
-
-            print(response_text)
-
-            # Parse JSON response
-            try:
-                # Clean up response text to extract JSON
-                json_start = response_text.find('{')
-                json_end = response_text.rfind('}') + 1
-
-                if json_start == -1 or json_end == 0:
-                    logger.warning(f"No JSON object found in response: {response_text}")
-                    raise json.JSONDecodeError("No JSON object found", response_text, 0)
+                    logger.warning(f"No JSON array found in response: {response_text[:500]}...")
+                    raise json.JSONDecodeError("No JSON array found", response_text, 0)
 
                 json_content = response_text[json_start:json_end]
                 parsed_data = json.loads(json_content)
 
-                # Extract data from JSON structure
-                substances = parsed_data.get('substances', [])
-                relationships_data = parsed_data.get('relationships', [])
-                mitigation_tips = parsed_data.get('tips', [])
+                # Validate that we got the expected structure
+                if not isinstance(parsed_data, list):
+                    logger.warning("Response is not a JSON array")
+                    raise json.JSONDecodeError("Response is not a JSON array", response_text, 0)
 
-                # Validate and ensure we have arrays
-                if not isinstance(substances, list):
-                    substances = ["Analysis not available"]
-                if not isinstance(relationships_data, list):
-                    relationships_data = []
-                if not isinstance(mitigation_tips, list):
-                    mitigation_tips = ["General healthy eating advice applies"]
-
-                # Process substance relationships from JSON
-                substance_relationships = []
-                for rel_data in relationships_data:
-                    if isinstance(rel_data, dict) and 'name' in rel_data:
-                        name = rel_data['name']
-                        category = rel_data.get('category', 'unknown')
-                        health_impact = rel_data.get('health_impact', 'neutral')
-
-                        # Validate health impact categories
-                        valid_impacts = ['positive', 'neutral', 'negative']
-                        if health_impact.lower() not in valid_impacts:
-                            health_impact = 'neutral'
-
-                        total_quantity = rel_data.get('total_quantity')
-                        unit = rel_data.get('unit', 'units')
-                        contributions_data = rel_data.get('contributions', [])
-
-                        # Process contributions
-                        contributions = []
-                        if isinstance(contributions_data, list):
-                            for contrib_data in contributions_data:
-                                if isinstance(contrib_data, dict):
-                                    ingredient_name = contrib_data.get('ingredient_name', '')
-                                    quantity_grams = contrib_data.get('quantity_grams')
-                                    contribution_percentage = contrib_data.get('contribution_percentage')
-                                    relationship_type = contrib_data.get('relationship_type', 'unknown')
-
-                                    # Validate numeric values
-                                    if quantity_grams is not None:
-                                        try:
-                                            quantity_grams = float(quantity_grams)
-                                        except (ValueError, TypeError):
-                                            quantity_grams = None
-
-                                    if contribution_percentage is not None:
-                                        try:
-                                            contribution_percentage = float(contribution_percentage)
-                                        except (ValueError, TypeError):
-                                            contribution_percentage = None
-
-                                    if ingredient_name:
-                                        contributions.append(SubstanceContribution(
-                                            ingredient_name=ingredient_name,
-                                            quantity_grams=quantity_grams,
-                                            contribution_percentage=contribution_percentage,
-                                            relationship_type=relationship_type
-                                        ))
-
-                        # Validate total_quantity
-                        if total_quantity is not None:
-                            try:
-                                total_quantity = float(total_quantity)
-                            except (ValueError, TypeError):
-                                total_quantity = None
-
-                        substance_relationships.append(SubstanceRelationship(
-                            name=name,
-                            category=category,
-                            health_impact=health_impact,
-                            total_quantity=total_quantity,
-                            unit=unit,
-                            contributions=contributions
-                        ))
-
-                # Create basic substance relationships if not already parsed
-                if not substance_relationships and substances:
-                    for substance in substances:
-                        relationship = SubstanceRelationship(
-                            name=substance,
-                            category='unknown',
-                            health_impact='neutral',
-                            total_quantity=None,
-                            unit='units',
-                            contributions=[]
-                        )
-                        substance_relationships.append(relationship)
-
-                # Ensure we have reasonable defaults
-                if not substances:
-                    substances = ["Analysis not available"]
-                    substance_relationships = [SubstanceRelationship(
-                        name="Analysis not available",
-                        category='unknown',
-                        health_impact='neutral',
-                        total_quantity=None,
-                        unit='units',
-                        contributions=[]
-                    )]
-                if not mitigation_tips:
-                    mitigation_tips = ["General healthy eating advice applies"]
-
-                # Create categorized tips from mitigation tips
-                categorized_tips = self._create_categorized_tips_from_mitigation(mitigation_tips)
-
-                # Keep all results (no arbitrary limits)
-                # substances = substances  # Keep all
-                # substance_relationships = substance_relationships  # Keep all
-                # mitigation_tips = mitigation_tips  # Keep all
-                # categorized_tips = categorized_tips  # Keep all
-
-                return substances, substance_relationships, mitigation_tips, categorized_tips
+                return parsed_data
 
             except json.JSONDecodeError as e:
-                logger.error(f"Failed to parse JSON response: {response_text}, Error: {str(e)}")
-                raise  # Re-raise to be caught by outer exception handler
+                logger.error(f"Failed to parse comprehensive analysis JSON response: {str(e)}")
+                raise
 
         except Exception as e:
-            logger.error(f"Error in ingredient analysis: {str(e)}")
-            # Return fallback data
-            return (
-                ["Analysis temporarily unavailable"],
-                [],
-                ["Please try again later"],
-                [CategorizedTip(
-                    id=str(uuid.uuid4()),
-                    category=TipCategory.LIFESTYLE,
-                    title="General Advice",
-                    content="Please try again later for personalized nutrition tips",
-                    priority='medium',
-                    relevance_score=0.5,
-                    tags=["general", "fallback"]
-                )]
-            )
+            logger.error(f"Error in comprehensive food analysis: {str(e)}")
+            raise
 
-    def _create_categorized_tips_from_mitigation(self, mitigation_tips: List[str]) -> List[CategorizedTip]:
-        """Create categorized tips from mitigation tips for backward compatibility"""
-        categorized_tips = []
-        categories = [TipCategory.FOOD, TipCategory.NUTRITION, TipCategory.LIFESTYLE]
+    def _get_mock_comprehensive_response(self, foods: List[Dict[str, str]]) -> List[Dict[str, Any]]:
+        """Return mock comprehensive response when API key is not available"""
+        mock_responses = []
 
-        for i, tip in enumerate(mitigation_tips):
-            categorized_tips.append(CategorizedTip(
-                id=str(uuid.uuid4()),
-                category=categories[i % len(categories)],
-                title=f"Nutrition Tip {i+1}",
-                content=tip,
-                priority='medium',
-                relevance_score=0.8,
-                tags=["nutrition", "ingredient-based"]
-            ))
-
-        return categorized_tips
-
-    def _get_mock_meal_response(self, food_name: str, meal_type: str) -> Dict[str, Any]:
-        """Return mock meal analysis response when API key is not available"""
-        from app.models.response_models import MealAnalysisResponse, MealIngredient, MealSubstance
-
-        # Mock ingredients based on food type
-        if "chicken" in food_name.lower():
-            ingredients = [
-                MealIngredient(name="chicken breast", quantity="150g"),
-                MealIngredient(name="mixed vegetables", quantity="1 cup"),
-                MealIngredient(name="olive oil", quantity="1 tbsp"),
-                MealIngredient(name="garlic", quantity="2 cloves")
-            ]
-            substances = [
-                MealSubstance(name="Protein", quantity=35.0, unit="g", category="protein", standard_consumption=50.0, health_impact="positive"),
-                MealSubstance(name="Vitamin C", quantity=45.0, unit="mg", category="vitamin", standard_consumption=90.0, health_impact="positive"),
-                MealSubstance(name="Iron", quantity=2.5, unit="mg", category="mineral", standard_consumption=18.0, health_impact="positive")
-            ]
-        elif "salad" in food_name.lower():
-            ingredients = [
-                MealIngredient(name="mixed greens", quantity="2 cups"),
-                MealIngredient(name="cherry tomatoes", quantity="1/2 cup"),
-                MealIngredient(name="cucumber", quantity="1/2 cup"),
-                MealIngredient(name="olive oil", quantity="1 tbsp")
-            ]
-            substances = [
-                MealSubstance(name="Vitamin K", quantity=120.0, unit="mcg", category="vitamin", standard_consumption=120.0, health_impact="positive"),
-                MealSubstance(name="Vitamin C", quantity=25.0, unit="mg", category="vitamin", standard_consumption=90.0, health_impact="positive"),
-                MealSubstance(name="Fiber", quantity=3.5, unit="g", category="fiber", standard_consumption=25.0, health_impact="positive")
-            ]
-        elif "pasta" in food_name.lower():
-            ingredients = [
-                MealIngredient(name="pasta", quantity="100g"),
-                MealIngredient(name="tomato sauce", quantity="1/2 cup"),
-                MealIngredient(name="parmesan cheese", quantity="2 tbsp"),
-                MealIngredient(name="olive oil", quantity="1 tsp")
-            ]
-            substances = [
-                MealSubstance(name="Carbohydrates", quantity=45.0, unit="g", category="carbohydrate", standard_consumption=130.0, health_impact="neutral"),
-                MealSubstance(name="Calcium", quantity=85.0, unit="mg", category="mineral", standard_consumption=1000.0, health_impact="positive"),
-                MealSubstance(name="Sodium", quantity=350.0, unit="mg", category="mineral", standard_consumption=2300.0, health_impact="neutral")
-            ]
-        else:
-            # Generic meal
-            ingredients = [
-                MealIngredient(name="main ingredient", quantity="1 serving"),
-                MealIngredient(name="vegetables", quantity="1 cup"),
-                MealIngredient(name="seasoning", quantity="1 tsp")
-            ]
-            substances = [
-                MealSubstance(name="Calories", quantity=300.0, unit="kcal", category="energy", standard_consumption=2000.0, health_impact="neutral"),
-                MealSubstance(name="Protein", quantity=20.0, unit="g", category="protein", standard_consumption=50.0, health_impact="positive"),
-                MealSubstance(name="Fat", quantity=10.0, unit="g", category="fat", standard_consumption=70.0, health_impact="neutral")
-            ]
-
-        response = MealAnalysisResponse(
-            food_name=food_name,
-            meal_type=meal_type,
-            ingredients=ingredients,
-            substances=substances
-        )
-
-        return response.to_dict()
-
-    def _get_fallback_meal_response(self, food_name: str, meal_type: str) -> Dict[str, Any]:
-        """Return fallback meal analysis response when analysis fails"""
-        from app.models.response_models import MealAnalysisResponse, MealIngredient, MealSubstance
-
-        ingredients = [
-            MealIngredient(name="Unable to determine ingredients", quantity="N/A")
-        ]
-        substances = [
-            MealSubstance(
-                name="Analysis not available",
-                quantity=0.0,
-                unit="N/A",
-                category="general",
-                standard_consumption=100.0,
-                health_impact="neutral"
-            )
+        # Define all allowed nutrient keys (simplified for mock)
+        nutrient_keys = [
+            "water_g", "protein_g", "carbohydrate_g", "fiber_g", "total_fat_g",
+            "vitamin_c_g", "calcium_g", "iron_g", "sodium_g", "potassium_g"
         ]
 
-        response = MealAnalysisResponse(
-            food_name=food_name,
-            meal_type=meal_type,
-            ingredients=ingredients,
-            substances=substances
-        )
+        for food in foods:
+            mock_response = {
+                "food_name": food["food_name"],
+                "meal_type": food["meal_type"],
+                "serving": {
+                    "description": f"Typical single-person serving of {food['food_name']}",
+                    "grams": 200.0
+                },
+                "ingredients": [
+                    {"name": f"Main ingredient for {food['food_name']}", "portion_percent": 60.0},
+                    {"name": "Secondary ingredient", "portion_percent": 30.0},
+                    {"name": "Seasoning", "portion_percent": 10.0}
+                ],
+                "nutrients_g": {}
+            }
 
-        return response.to_dict()
+            # Add all required nutrient keys with mock data
+            for key in nutrient_keys:
+                mock_response["nutrients_g"][key] = {
+                    "full_name": f"Mock {key.replace('_', ' ')}",
+                    "class": "macronutrient" if key in ["water_g", "protein_g", "carbohydrate_g", "fiber_g", "total_fat_g"] else "mineral" if "_g" in key else "vitamin",
+                    "impact": "positive" if key in ["protein_g", "fiber_g", "vitamin_c_g"] else "negative" if key == "sodium_g" else "neutral",
+                    "total_g": 10.0 if key == "protein_g" else 5.0 if key in ["vitamin_c_g", "iron_g"] else 1.0,
+                    "by_ingredient": [
+                        {"ingredient": f"Main ingredient for {food['food_name']}", "grams": 6.0, "percent_of_chemical": 60.0},
+                        {"ingredient": "Secondary ingredient", "grams": 3.0, "percent_of_chemical": 30.0},
+                        {"ingredient": "Seasoning", "grams": 1.0, "percent_of_chemical": 10.0}
+                    ]
+                }
+
+            mock_responses.append(mock_response)
+
+        return mock_responses
+
+    def _get_fallback_comprehensive_response(self, foods: List[Dict[str, str]]) -> List[Dict[str, Any]]:
+        """Return fallback comprehensive response when analysis fails"""
+        fallback_responses = []
+
+        for food in foods:
+            fallback_response = {
+                "food_name": food["food_name"],
+                "meal_type": food["meal_type"],
+                "serving": {
+                    "description": "Analysis temporarily unavailable",
+                    "grams": 0.0
+                },
+                "ingredients": [
+                    {"name": "Analysis temporarily unavailable", "portion_percent": 100.0}
+                ],
+                "nutrients_g": {
+                    "protein_g": {
+                        "full_name": "Protein",
+                        "class": "macronutrient",
+                        "impact": "positive",
+                        "total_g": 0.0,
+                        "by_ingredient": []
+                    }
+                }
+            }
+            fallback_responses.append(fallback_response)
+
+        return fallback_responses
+

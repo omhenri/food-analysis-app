@@ -66,6 +66,8 @@ export const MealAnalysisCard: React.FC<MealAnalysisCardProps> = ({
       foodName: result.foodId, // Using foodId as name for now
       ingredients: result.ingredients,
       substances: result.chemicalSubstances,
+      servingInfo: result.servingInfo,
+      detailedNutrients: result.detailedNutrients,
     }));
   };
 
@@ -95,7 +97,17 @@ export const MealAnalysisCard: React.FC<MealAnalysisCardProps> = ({
           {groupSubstancesByFood().map((foodData, index) => (
             <View key={index} style={styles.foodSection}>
               <Text style={styles.foodName}>{foodData.foodName}</Text>
-              
+
+              {/* Serving Information */}
+              {foodData.servingInfo && (
+                <View style={styles.servingSection}>
+                  <Text style={styles.sectionTitle}>Serving:</Text>
+                  <Text style={styles.servingText}>
+                    {foodData.servingInfo.description} ({foodData.servingInfo.grams}g)
+                  </Text>
+                </View>
+              )}
+
               {/* Ingredients */}
               <View style={styles.ingredientsSection}>
                 <Text style={styles.sectionTitle}>Ingredients:</Text>
@@ -106,7 +118,7 @@ export const MealAnalysisCard: React.FC<MealAnalysisCardProps> = ({
 
               {/* Chemical Substances */}
               <View style={styles.substancesSection}>
-                <Text style={styles.sectionTitle}>Nutrients:</Text>
+                <Text style={styles.sectionTitle}>Key Nutrients:</Text>
                 {foodData.substances.map((substance, substanceIndex) => (
                   <View key={substanceIndex} style={styles.substanceRow}>
                     <View style={styles.substanceInfo}>
@@ -125,6 +137,13 @@ export const MealAnalysisCard: React.FC<MealAnalysisCardProps> = ({
                     </Text>
                   </View>
                 ))}
+
+                {/* Show additional nutrient count if available */}
+                {foodData.detailedNutrients && (
+                  <Text style={styles.additionalNutrientsText}>
+                    + {Object.keys(foodData.detailedNutrients).length - foodData.substances.length} more nutrients analyzed
+                  </Text>
+                )}
               </View>
             </View>
           ))}
@@ -184,6 +203,14 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
     marginBottom: Spacing.xs,
   },
+  servingSection: {
+    marginBottom: Spacing.xs,
+  },
+  servingText: {
+    fontSize: FontSizes.small,
+    color: Colors.primary,
+    fontWeight: '500',
+  },
   ingredientsSection: {
     marginBottom: Spacing.xs,
   },
@@ -227,5 +254,11 @@ const styles = StyleSheet.create({
     fontSize: FontSizes.small,
     color: Colors.textSecondary,
     fontWeight: '500',
+  },
+  additionalNutrientsText: {
+    fontSize: FontSizes.xsmall,
+    color: Colors.inactive,
+    fontStyle: 'italic',
+    marginTop: 4,
   },
 });

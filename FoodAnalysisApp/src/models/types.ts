@@ -56,6 +56,24 @@ export interface AnalysisResult {
   ingredients: string[];
   chemicalSubstances: ChemicalSubstance[];
   analyzedAt?: string;
+  // Additional fields for comprehensive analysis
+  servingInfo?: {
+    description: string;
+    grams: number;
+  };
+  detailedNutrients?: {
+    [nutrientKey: string]: {
+      full_name: string;
+      class: string;
+      impact: 'positive' | 'neutral' | 'negative';
+      total_g: number;
+      by_ingredient: Array<{
+        ingredient: string;
+        grams: number;
+        percent_of_chemical: number;
+      }>;
+    };
+  };
 }
 
 // Comparison Data Model
