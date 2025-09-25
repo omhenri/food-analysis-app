@@ -64,7 +64,7 @@ const CustomTabBar: React.FC<any> = ({ state, descriptors, navigation }) => {
           ]}
         >
           <FoodInputTabIcon
-            color={state.index === 0 ? Colors.white : Colors.inactive}
+            color={state.index === 0 ? Colors.primary : Colors.inactive}
           />
         </View>
       </TouchableOpacity>
@@ -72,7 +72,7 @@ const CustomTabBar: React.FC<any> = ({ state, descriptors, navigation }) => {
       {/* Center Logo */}
       <View style={styles.logoContainer}>
         <View style={styles.logo}>
-          <LogoIcon color={Colors.white} />
+          <LogoIcon color={Colors.inactive} />
         </View>
       </View>
 
@@ -89,7 +89,7 @@ const CustomTabBar: React.FC<any> = ({ state, descriptors, navigation }) => {
           ]}
         >
           <HistoricalTabIcon
-            color={state.index === 1 ? Colors.white : Colors.inactive}
+            color={state.index === 1 ? Colors.primary : Colors.inactive}
           />
         </View>
       </TouchableOpacity>
@@ -203,7 +203,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   tabButtonActive: {
-    backgroundColor: Colors.primary,
+    backgroundColor: 'transparent',
   },
   logoContainer: {
     alignItems: 'center',
@@ -212,7 +212,7 @@ const styles = StyleSheet.create({
   logo: {
     width: 63,
     height: 40,
-    backgroundColor: Colors.inactive,
+    backgroundColor: 'transparent',
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',

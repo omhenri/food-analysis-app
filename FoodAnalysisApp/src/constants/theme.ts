@@ -5,6 +5,7 @@ export const Colors = {
   textPrimary: '#2D3748',
   textSecondary: '#4A5568',
   white: '#FFFFFF',
+  black: '#000000',
 
   // Accent Colors
   success: '#48BB78',

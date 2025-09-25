@@ -25,7 +25,7 @@ export const HistoricalTabIcon: React.FC<TabIconProps> = ({
 );
 
 export const LogoIcon: React.FC<TabIconProps> = ({
-  size = 24,
+  size = 100,
   color = '#595959'
 }) => (
   <Svg width={size} height={size * 21/63} viewBox="0 0 63 21" fill="none">

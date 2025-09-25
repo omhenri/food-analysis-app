@@ -1715,7 +1715,7 @@ Output ONLY the final JSON array; no explanations, no markdown, no additional te
         input_data = {
             "nutrients_consumed": nutrients_consumed
         }
-
+        print(input_data)
         prompt = f"{prompt_template}\n\n{json.dumps(input_data)}"
 
         try:
@@ -1730,7 +1730,7 @@ Output ONLY the final JSON array; no explanations, no markdown, no additional te
             )
 
             response_text = response.choices[0].message.content.strip()
-
+            print(response_text)
             # Parse JSON response
             try:
                 # Clean up response text to extract JSON
@@ -1873,15 +1873,18 @@ IMPORTANT NOTES:
         # Build dynamic recommended intakes object
         recommended_intakes_obj = {}
 
-        # Include recommendations for nutrients that were consumed
+        # Include recommendations for nutrients that were consumed (only if they have established values > 0)
         for nutrient_name in consumed_nutrient_names:
             if nutrient_name in base_recommendations:
-                recommended_intakes_obj[nutrient_name] = base_recommendations[nutrient_name]["value"]
+                value = base_recommendations[nutrient_name]["value"]
+                if value > 0:
+                    recommended_intakes_obj[nutrient_name] = value
 
-        # If no specific nutrients were consumed, return all recommendations
+        # If no specific nutrients were consumed, return all recommendations (excluding those with 0 values)
         if not recommended_intakes_obj:
             for nutrient_name, rec in base_recommendations.items():
-                recommended_intakes_obj[nutrient_name] = rec["value"]
+                if rec["value"] > 0:
+                    recommended_intakes_obj[nutrient_name] = rec["value"]
 
         return {
             "recommended_intakes": recommended_intakes_obj,

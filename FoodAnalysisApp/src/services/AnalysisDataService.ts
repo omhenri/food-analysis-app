@@ -194,8 +194,14 @@ export class AnalysisDataService {
     Object.keys(recommendedIntake).forEach(substance => {
       const consumed = consumedAmounts[substance] || 0;
       const recommended = recommendedIntake[substance];
-      const percentage = recommended > 0 ? (consumed / recommended) * 100 : 0;
-      
+
+      // Skip nutrients with no established recommended intake (recommended = 0)
+      if (recommended <= 0) {
+        return;
+      }
+
+      const percentage = (consumed / recommended) * 100;
+
       let status: ConsumptionStatus;
       if (percentage < 80) {
         status = 'under';
@@ -216,7 +222,7 @@ export class AnalysisDataService {
 
     // Also include consumed substances not in recommended intake
     Object.keys(consumedAmounts).forEach(substance => {
-      if (!recommendedIntake[substance]) {
+      if (!(substance in recommendedIntake)) {
         comparisonData.push({
           substance: substance.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
           consumed: consumedAmounts[substance],
@@ -315,8 +321,14 @@ export class AnalysisDataService {
     Object.keys(weeklyRecommended).forEach(substance => {
       const consumed = totalConsumption[substance] || 0;
       const recommended = weeklyRecommended[substance];
-      const percentage = recommended > 0 ? (consumed / recommended) * 100 : 0;
-      
+
+      // Skip nutrients with no established recommended intake (recommended = 0)
+      if (recommended <= 0) {
+        return;
+      }
+
+      const percentage = (consumed / recommended) * 100;
+
       let status: ConsumptionStatus;
       if (percentage < 80) {
         status = 'under';

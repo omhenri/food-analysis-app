@@ -100,7 +100,7 @@ export const FoodInputRow: React.FC<FoodInputRowProps> = ({
               >
                 <MealIcon mealType={mealType} />
                 <Text style={styles.mealTypeOptionText}>
-                  {mealType.charAt(0).toUpperCase() + mealType.slice(1)}
+                  {"  " + mealType.charAt(0).toUpperCase() + mealType.slice(1)}
                 </Text>
               </TouchableOpacity>
             ))}
@@ -224,7 +224,7 @@ const styles = StyleSheet.create({
   mealTypeOption: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: Spacing.xs,
+    paddingVertical: Spacing.sm,
     paddingHorizontal: Spacing.xs,
   },
   mealTypeOptionText: {

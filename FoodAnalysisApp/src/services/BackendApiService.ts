@@ -213,7 +213,7 @@ export class BackendApiService {
       if (data.recommended_intakes && typeof data.recommended_intakes === 'object') {
         // Convert nutrient names to the expected format (e.g., "vitamin_c" instead of "vitamin-c")
         Object.entries(data.recommended_intakes).forEach(([nutrient, value]) => {
-          const nutrientKey = nutrient.replace(/-/g, '_');
+          const nutrientKey = nutrient.replace(/-/g, '-');
           recommendedIntake[nutrientKey] = value as number;
         });
       }
