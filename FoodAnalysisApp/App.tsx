@@ -25,13 +25,13 @@ function App(): React.JSX.Element {
         }
 
         // Configure backend for analysis service with extended timeout (10 minutes for OpenRouter responses)
-        const extendedTimeout = 10 * 60 * 1000; // 10 minutes in milliseconds
-        analysisService.configureBackend(backendUrl, extendedTimeout);
+        // const extendedTimeout = 10 * 60 * 1000; // 10 minutes in milliseconds
+        // analysisService.configureBackend(backendUrl, extendedTimeout);
 
-        // Default to backend service (food-backend only)
-        // For development, you can enable mock service instead:
+        // Default to mock service for testing (no API calls needed)
+        // For production, enable backend service instead:
         // analysisService.enableMockService();
-        console.log(`Analysis service configured with backend: ${backendUrl}, timeout: ${extendedTimeout/1000}s`);
+        console.log(`Analysis service configured with mock data - no API calls needed!`);
         
         // Initialize database
         const { DatabaseService } = await import('./src/services/DatabaseService');

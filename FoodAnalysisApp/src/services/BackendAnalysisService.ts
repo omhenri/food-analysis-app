@@ -44,7 +44,7 @@ export class BackendAnalysisService {
 
       // Convert backend response to app format
       const analysisResults = this.backendService.convertToAnalysisResults(backendResponse);
-
+      console.log('Analysis results:', analysisResults);
       console.log('Backend analysis completed successfully');
       return analysisResults;
     } catch (error) {

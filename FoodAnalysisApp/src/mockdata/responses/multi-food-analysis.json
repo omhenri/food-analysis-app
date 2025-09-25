@@ -1,0 +1,67 @@
+[
+  {
+    "food_name": "Apple",
+    "meal_type": "breakfast",
+    "serving": {
+      "description": "One medium apple",
+      "grams": 182.0
+    },
+    "ingredients": [
+      {"name": "Apple flesh", "portion_percent": 95.0},
+      {"name": "Apple skin", "portion_percent": 4.5},
+      {"name": "Apple core/seeds", "portion_percent": 0.5}
+    ],
+    "nutrients_g": {
+      "carbohydrate": {
+        "full_name": "Carbohydrate",
+        "class": "macronutrient",
+        "impact": "neutral",
+        "total_g": 25.13,
+        "by_ingredient": [
+          {"ingredient": "Apple flesh", "grams": 25.13, "percent_of_chemical": 100.0}
+        ]
+      },
+      "fiber": {
+        "full_name": "Dietary Fiber",
+        "class": "macronutrient",
+        "impact": "positive",
+        "total_g": 4.37,
+        "by_ingredient": [
+          {"ingredient": "Apple flesh", "grams": 4.37, "percent_of_chemical": 100.0}
+        ]
+      }
+    }
+  },
+  {
+    "food_name": "Banana",
+    "meal_type": "breakfast",
+    "serving": {
+      "description": "One medium banana",
+      "grams": 118.0
+    },
+    "ingredients": [
+      {"name": "Banana flesh", "portion_percent": 98.0},
+      {"name": "Banana peel", "portion_percent": 2.0}
+    ],
+    "nutrients_g": {
+      "carbohydrate": {
+        "full_name": "Carbohydrate",
+        "class": "macronutrient",
+        "impact": "neutral",
+        "total_g": 27.04,
+        "by_ingredient": [
+          {"ingredient": "Banana flesh", "grams": 27.04, "percent_of_chemical": 100.0}
+        ]
+      },
+      "potassium": {
+        "full_name": "Potassium",
+        "class": "mineral",
+        "impact": "positive",
+        "total_g": 0.4224,
+        "by_ingredient": [
+          {"ingredient": "Banana flesh", "grams": 0.4224, "percent_of_chemical": 100.0}
+        ]
+      }
+    }
+  }
+]

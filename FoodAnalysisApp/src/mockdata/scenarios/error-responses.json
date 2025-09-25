@@ -1,0 +1,22 @@
+{
+  "network_error": {
+    "success": false,
+    "error": "Network connection failed",
+    "code": "NETWORK_ERROR"
+  },
+  "timeout_error": {
+    "success": false,
+    "error": "Request timeout - backend took too long to respond",
+    "code": "TIMEOUT_ERROR"
+  },
+  "invalid_food": {
+    "success": false,
+    "error": "Invalid food name provided",
+    "code": "INVALID_FOOD_NAME"
+  },
+  "backend_unavailable": {
+    "success": false,
+    "error": "Backend service is temporarily unavailable",
+    "code": "SERVICE_UNAVAILABLE"
+  }
+}

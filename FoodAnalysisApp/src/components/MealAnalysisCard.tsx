@@ -83,9 +83,10 @@ export const MealAnalysisCard: React.FC<MealAnalysisCardProps> = ({
     }));
   };
 
-  const contentHeight = animation.interpolate({
+  // Use opacity animation instead of height to allow content to expand naturally
+  const contentOpacity = animation.interpolate({
     inputRange: [0, 1],
-    outputRange: [0, 200], // Adjust based on content
+    outputRange: [0, 1],
   });
 
   return (
@@ -104,7 +105,7 @@ export const MealAnalysisCard: React.FC<MealAnalysisCardProps> = ({
       </TouchableOpacity>
 
       {/* Expandable Content */}
-      <Animated.View style={[styles.content, { height: contentHeight }]}>
+      <Animated.View style={[styles.content, { opacity: contentOpacity }]}>
         <View style={styles.contentInner}>
           {groupSubstancesByFood().map((foodData, index) => (
             <View key={index} style={styles.foodSection}>
@@ -140,30 +141,34 @@ export const MealAnalysisCard: React.FC<MealAnalysisCardProps> = ({
 
               {/* Chemical Substances */}
               <View style={styles.substancesSection}>
-                <Text style={styles.sectionTitle}>Key Nutrients:</Text>
-                {foodData.substances.map((substance, substanceIndex) => (
-                  <View key={substanceIndex} style={styles.substanceRow}>
-                    <View style={styles.substanceInfo}>
-                      <Text
-                        style={[
-                          styles.categoryIcon,
-                          { color: getCategoryColor(substance.category) }
-                        ]}
-                      >
-                        {getCategoryIcon(substance.category)}
+                <Text style={styles.sectionTitle}>Nutrients:</Text>
+                {foodData.substances && foodData.substances.length > 0 ? (
+                  foodData.substances.map((substance, substanceIndex) => (
+                    <View key={substanceIndex} style={styles.substanceRow}>
+                      <View style={styles.substanceInfo}>
+                        <Text
+                          style={[
+                            styles.categoryIcon,
+                            { color: getCategoryColor(substance.category) }
+                          ]}
+                        >
+                          {getCategoryIcon(substance.category)}
+                        </Text>
+                        <Text style={styles.substanceName}>{substance.name}</Text>
+                      </View>
+                      <Text style={styles.substanceAmount}>
+                        {formatNutrientAmount(substance.amount, substance.name)}
                       </Text>
-                      <Text style={styles.substanceName}>{substance.name}</Text>
                     </View>
-                    <Text style={styles.substanceAmount}>
-                      {formatNutrientAmount(substance.amount, substance.name)}
-                    </Text>
-                  </View>
-                ))}
+                  ))
+                ) : (
+                  <Text style={styles.noNutrientsText}>No nutrient data available</Text>
+                )}
 
-                {/* Show additional nutrient count if available */}
+                {/* Show total nutrient count */}
                 {foodData.detailedNutrients && (
                   <Text style={styles.additionalNutrientsText}>
-                    + {Object.keys(foodData.detailedNutrients).length - foodData.substances.length} more nutrients analyzed
+                    Total: {Object.keys(foodData.detailedNutrients).length} nutrients analyzed
                   </Text>
                 )}
               </View>
@@ -284,6 +289,12 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   additionalNutrientsText: {
+    fontSize: FontSizes.small,
+    color: Colors.inactive,
+    fontStyle: 'italic',
+    marginTop: 4,
+  },
+  noNutrientsText: {
     fontSize: FontSizes.small,
     color: Colors.inactive,
     fontStyle: 'italic',

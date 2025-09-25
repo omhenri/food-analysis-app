@@ -70,7 +70,7 @@ export interface BackendRecommendedIntake {
 
 export class BackendApiService {
   private static instance: BackendApiService;
-  private baseUrl: string = 'http://localhost:5000'; // Default backend URL
+  private baseUrl: string = 'http://localhost:8000'; // Default backend URL
   private timeout: number = 300000; // 5 minutes timeout (for OpenRouter responses)
 
   private constructor() {}
@@ -234,20 +234,16 @@ export class BackendApiService {
       const ingredients = data.ingredients.map(ing => ing.name);
       const ingredientDetails = data.ingredients;
 
-      // Convert comprehensive nutrients to ChemicalSubstances
+      // Convert ALL nutrients to ChemicalSubstances
       const chemicalSubstances: ChemicalSubstance[] = [];
 
-      // Extract key nutrients to display (prioritize macronutrients and important micros)
+      // Extract ALL nutrients from data.nutrients_g
       // Note: Backend uses nutrient names without '_g' suffix
-      const priorityNutrients = [
-        'protein', 'fat', 'saturated_fat', 'monounsaturated_fat', 'polyunsaturated_fat',
-        'cholesterol', 'sodium', 'potassium', 'phosphorus', 'niacin', 'vitamin_b6'
-      ];
+      Object.keys(data.nutrients_g).forEach(nutrientKey => {
+        const nutrient = data.nutrients_g[nutrientKey];
 
-      priorityNutrients.forEach(nutrientKey => {
-        if (data.nutrients_g[nutrientKey] && data.nutrients_g[nutrientKey].total_g > 0) {
-          const nutrient = data.nutrients_g[nutrientKey];
-
+        // Only include nutrients with positive amounts
+        if (nutrient && nutrient.total_g > 0) {
           // Convert impact to category
           let category: 'good' | 'bad' | 'neutral' = 'neutral';
           if (nutrient.impact === 'positive') {
@@ -261,28 +257,6 @@ export class BackendApiService {
             category,
             amount: nutrient.total_g,
             mealType: data.meal_type as any, // Cast to MealType
-          });
-        }
-      });
-
-      // Add a few more important nutrients if space allows
-      const additionalNutrients = ['iron', 'magnesium', 'riboflavin', 'thiamin', 'vitamin_b12', 'zinc'];
-      additionalNutrients.forEach(nutrientKey => {
-        if (data.nutrients_g[nutrientKey] && data.nutrients_g[nutrientKey].total_g > 0 && chemicalSubstances.length < 16) {
-          const nutrient = data.nutrients_g[nutrientKey];
-
-          let category: 'good' | 'bad' | 'neutral' = 'neutral';
-          if (nutrient.impact === 'positive') {
-            category = 'good';
-          } else if (nutrient.impact === 'negative') {
-            category = 'bad';
-          }
-
-          chemicalSubstances.push({
-            name: nutrient.full_name,
-            category,
-            amount: nutrient.total_g,
-            mealType: data.meal_type as any,
           });
         }
       });

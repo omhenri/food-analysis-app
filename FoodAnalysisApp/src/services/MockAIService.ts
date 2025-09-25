@@ -1,5 +1,9 @@
 import { FoodItem, AnalysisResult, ChemicalSubstance, RecommendedIntake } from '../models/types';
 
+// Import mock data
+import singleFoodAnalysis from '../mockdata/responses/single-food-analysis.json';
+import multiFoodAnalysis from '../mockdata/responses/multi-food-analysis.json';
+
 // Mock AI service for development and testing
 export class MockAIService {
   private static instance: MockAIService;
@@ -13,12 +17,25 @@ export class MockAIService {
     return MockAIService.instance;
   }
 
-  // Mock food analysis with realistic data
+  // Mock food analysis with realistic data from JSON files
   public async analyzeFoods(foods: FoodItem[]): Promise<AnalysisResult[]> {
     // Simulate API delay
     await this.delay(1500);
 
-    return foods.map(food => this.generateMockAnalysis(food));
+    if (foods.length === 1) {
+      // Use detailed mock data for single food
+      return [this.convertBackendResponseToAnalysisResult(singleFoodAnalysis[0], foods[0])];
+    } else {
+      // Use multi-food mock data or generate for multiple foods
+      return foods.map((food, index) => {
+        if (index < multiFoodAnalysis.length) {
+          return this.convertBackendResponseToAnalysisResult(multiFoodAnalysis[index], food);
+        } else {
+          // Fallback to generated data for additional foods
+          return this.generateMockAnalysis(food);
+        }
+      });
+    }
   }
 
   // Mock recommended intake
@@ -50,6 +67,49 @@ export class MockAIService {
       zinc: 0.011,
       phosphorus: 0.7,
       selenium: 0.000055,
+    };
+  }
+
+  // Convert backend JSON response to AnalysisResult format
+  private convertBackendResponseToAnalysisResult(backendData: any, foodItem: FoodItem): AnalysisResult {
+    // Convert ingredients
+    const ingredients = backendData.ingredients.map((ing: any) => ing.name);
+    const ingredientDetails = backendData.ingredients;
+
+    // Convert ALL nutrients to ChemicalSubstances
+    const chemicalSubstances: ChemicalSubstance[] = [];
+
+    // Extract ALL nutrients from backendData.nutrients_g
+    Object.keys(backendData.nutrients_g).forEach(nutrientKey => {
+      const nutrient = backendData.nutrients_g[nutrientKey];
+
+      // Only include nutrients with positive amounts
+      if (nutrient && nutrient.total_g > 0) {
+        let category: 'good' | 'bad' | 'neutral' = 'neutral';
+        if (nutrient.impact === 'positive') {
+          category = 'good';
+        } else if (nutrient.impact === 'negative') {
+          category = 'bad';
+        }
+
+        chemicalSubstances.push({
+          name: nutrient.full_name,
+          category,
+          amount: nutrient.total_g,
+          mealType: foodItem.mealType,
+        });
+      }
+    });
+
+    return {
+      foodId: foodItem.id,
+      foodEntryId: 0,
+      ingredients,
+      ingredientDetails,
+      chemicalSubstances,
+      analyzedAt: new Date().toISOString(),
+      servingInfo: backendData.serving,
+      detailedNutrients: backendData.nutrients_g,
     };
   }
 
