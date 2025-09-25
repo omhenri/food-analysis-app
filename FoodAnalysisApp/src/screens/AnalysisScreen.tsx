@@ -26,10 +26,26 @@ export const AnalysisScreen: React.FC<AnalysisScreenProps> = ({
   onComparisonPress,
   onBackPress,
 }) => {
+  console.log('AnalysisScreen props:', {
+    foodsCount: foods.length,
+    foods: foods.map(f => ({ id: f.id, name: f.name, mealType: f.mealType }))
+  });
+
   const [analysisResults, setAnalysisResults] = useState<AnalysisResult[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [expandedMeals, setExpandedMeals] = useState<Set<MealType>>(new Set(['breakfast']));
+
+  // Debug: Log when analysisResults state changes
+  React.useEffect(() => {
+    console.log('AnalysisScreen: analysisResults state updated:', {
+      count: analysisResults.length,
+      details: analysisResults.map(r => ({
+        foodId: r.foodId,
+        substancesCount: r.chemicalSubstances?.length || 0
+      }))
+    });
+  }, [analysisResults]);
 
   const analysisDataService = AnalysisDataService.getInstance();
 
@@ -49,11 +65,21 @@ export const AnalysisScreen: React.FC<AnalysisScreenProps> = ({
       setError(null);
 
       console.log('Starting food analysis and saving for:', foods.map(f => f.name));
+      console.log('Using analysis service:', analysisDataService['analysisService'].constructor.name);
+
       const results = await analysisDataService.analyzeAndSaveFoods(foods);
-      
-      setAnalysisResults(results);
+
+      console.log('Raw results from analyzeAndSaveFoods:', results);
       console.log('Analysis and save completed successfully. Saved', results.length, 'results');
-      console.log('Results:', results.map(r => ({ foodId: r.foodId, entryId: r.foodEntryId })));
+      console.log('Results details:', results.map(r => ({
+        foodId: r.foodId,
+        entryId: r.foodEntryId,
+        substancesCount: r.chemicalSubstances?.length || 0,
+        ingredientsCount: r.ingredients?.length || 0
+      })));
+
+      setAnalysisResults(results);
+      console.log('State updated with results, should trigger re-render');
     } catch (err) {
       console.error('Analysis failed:', err);
       setError(`Analysis failed: ${err}`);
@@ -82,15 +108,29 @@ export const AnalysisScreen: React.FC<AnalysisScreenProps> = ({
   };
 
   const getAnalysisForMealType = (mealType: MealType): AnalysisResult[] => {
-    return analysisResults.filter(result => {
+    const filtered = analysisResults.filter(result => {
       // Find the original food item to get its meal type
-      const originalFood = foods.find(food => food.id === result.foodId);
-      return originalFood?.mealType === mealType;
+      // Try matching by ID first, then by name (since backend returns food_name as foodId)
+      const originalFood = foods.find(food =>
+        food.id === result.foodId || food.name.toLowerCase() === result.foodId.toLowerCase()
+      );
+      const matches = originalFood?.mealType === mealType;
+      console.log('getAnalysisForMealType:', {
+        resultFoodId: result.foodId,
+        mealType,
+        originalFood: originalFood ? { id: originalFood.id, name: originalFood.name, mealType: originalFood.mealType } : null,
+        matches
+      });
+      return matches;
     });
+    console.log('getAnalysisForMealType result:', { mealType, count: filtered.length });
+    return filtered;
   };
 
   const hasMealTypeData = (mealType: MealType): boolean => {
-    return getAnalysisForMealType(mealType).length > 0;
+    const hasData = getAnalysisForMealType(mealType).length > 0;
+    console.log('hasMealTypeData:', { mealType, hasData });
+    return hasData;
   };
 
   const handleComparisonPress = () => {

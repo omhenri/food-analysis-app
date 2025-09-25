@@ -23,6 +23,16 @@ export const MealAnalysisCard: React.FC<MealAnalysisCardProps> = ({
   isExpanded,
   onToggle,
 }) => {
+  console.log('MealAnalysisCard render:', {
+    mealType,
+    analysisResultsCount: analysisResults.length,
+    firstResult: analysisResults[0] ? {
+      foodId: analysisResults[0].foodId,
+      chemicalSubstancesCount: analysisResults[0].chemicalSubstances?.length || 0,
+      ingredientsCount: analysisResults[0].ingredients?.length || 0
+    } : 'no results'
+  });
+
   const [animation] = useState(new Animated.Value(isExpanded ? 1 : 0));
 
   React.useEffect(() => {

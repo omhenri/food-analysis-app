@@ -224,10 +224,21 @@ export class BackendApiService {
 
   // Convert backend response to app AnalysisResult format
   public convertToAnalysisResults(backendResponse: BackendResponse<BackendAnalysisData[]>): AnalysisResult[] {
+    console.log('BackendApiService.convertToAnalysisResults called with:', {
+      success: backendResponse.success,
+      dataLength: backendResponse.data?.length || 0,
+      error: backendResponse.error
+    });
+
     if (!backendResponse.success || !backendResponse.data) {
       console.error('Cannot convert failed backend response to analysis results');
       return [];
     }
+
+    console.log('Backend response data structure:', {
+      firstItemKeys: backendResponse.data[0] ? Object.keys(backendResponse.data[0]) : 'no data',
+      nutrientsKeys: backendResponse.data[0]?.nutrients_g ? Object.keys(backendResponse.data[0].nutrients_g) : 'no nutrients'
+    });
 
     return backendResponse.data.map((data, index) => {
       // Convert ingredients to string array and keep detailed info
@@ -261,7 +272,7 @@ export class BackendApiService {
         }
       });
 
-      return {
+      const result = {
         foodId: data.food_name, // Use food name as ID for display
         foodEntryId: 0, // Will be set when saving to database
         ingredients,
@@ -272,6 +283,15 @@ export class BackendApiService {
         servingInfo: data.serving,
         detailedNutrients: data.nutrients_g,
       } as AnalysisResult & { servingInfo?: any; detailedNutrients?: any };
+
+      console.log(`Converted result ${index}:`, {
+        foodId: result.foodId,
+        ingredientsCount: result.ingredients.length,
+        chemicalSubstancesCount: result.chemicalSubstances.length,
+        firstSubstance: result.chemicalSubstances[0]
+      });
+
+      return result;
     });
   }
 
