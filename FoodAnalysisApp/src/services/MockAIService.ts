@@ -3,6 +3,7 @@ import { FoodItem, AnalysisResult, ChemicalSubstance, RecommendedIntake } from '
 // Import mock data
 import singleFoodAnalysis from '../mockdata/responses/single-food-analysis.json';
 import multiFoodAnalysis from '../mockdata/responses/multi-food-analysis.json';
+import recommendedIntakesData from '../mockdata/analysisdata.json';
 
 // Mock AI service for development and testing
 export class MockAIService {
@@ -38,36 +39,46 @@ export class MockAIService {
     }
   }
 
-  // Mock recommended intake
-  public async getRecommendedIntake(age: number = 25): Promise<RecommendedIntake> {
+  // Mock recommended intake using data from analysisdata.json
+  public async getRecommendedIntake(nutrientsConsumed?: Array<{name: string, total_amount: number, unit: string}>, age?: string, gender?: string): Promise<RecommendedIntake> {
     await this.delay(500);
 
-    return {
-      protein: 50,
-      carbohydrates: 300,
-      fat: 65,
-      fiber: 25,
-      sugar: 50,
-      sodium: 2.3,
-      calcium: 1,
-      iron: 0.018,
-      'vitamin-c': 0.09,
-      'vitamin-d': 0.00002,
-      'vitamin-a': 0.0009,
-      'vitamin-e': 0.015,
-      'vitamin-k': 0.00012,
-      'vitamin-b1': 0.0012,
-      'vitamin-b2': 0.0013,
-      'vitamin-b3': 0.016,
-      'vitamin-b6': 0.0017,
-      'vitamin-b12': 0.0000024,
-      'folic-acid': 0.0004,
-      potassium: 3.5,
-      magnesium: 0.4,
-      zinc: 0.011,
-      phosphorus: 0.7,
-      selenium: 0.000055,
-    };
+    // Convert the mock data format to RecommendedIntake format
+    const baseRecommendations: RecommendedIntake = {};
+
+    // Convert from the array format in analysisdata.json to object format expected by frontend
+    recommendedIntakesData.recommended_intakes.forEach((item: any) => {
+      // Convert nutrient names to match the format expected by the frontend
+      const nutrientKey = item.nutrient.replace(/-/g, '_');
+      baseRecommendations[nutrientKey] = item.recommended_daily_grams;
+    });
+
+    // If nutrients consumed are provided, only return recommendations for those nutrients
+    if (nutrientsConsumed && nutrientsConsumed.length > 0) {
+      const consumedNutrientNames = nutrientsConsumed.map(n => n.name.replace(/-/g, '_'));
+      const filteredRecommendations: RecommendedIntake = {};
+
+      consumedNutrientNames.forEach(nutrientName => {
+        if (nutrientName in baseRecommendations) {
+          filteredRecommendations[nutrientName] = baseRecommendations[nutrientName];
+        }
+      });
+
+      // If no matching nutrients found, return a subset of base recommendations
+      if (Object.keys(filteredRecommendations).length === 0) {
+        return {
+          protein: baseRecommendations.protein || 50,
+          carbohydrate: baseRecommendations.carbohydrate || 300,
+          fat: baseRecommendations.fat || 65,
+          fiber: baseRecommendations.fiber || 25,
+          sodium: baseRecommendations.sodium || 2.3,
+        };
+      }
+
+      return filteredRecommendations;
+    }
+
+    return baseRecommendations;
   }
 
   // Convert backend JSON response to AnalysisResult format

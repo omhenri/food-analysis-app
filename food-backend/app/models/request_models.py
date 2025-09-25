@@ -50,3 +50,35 @@ class MealAnalysisRequest:
             'food_name': self.food_name,
             'meal_type': self.meal_type,
         }
+
+
+@dataclass
+class NutrientConsumed:
+    """Represents a nutrient consumed on a given day"""
+    name: str
+    total_amount: float
+    unit: str = "grams"
+
+    def to_dict(self):
+        """Convert to dictionary for processing"""
+        return {
+            'name': self.name,
+            'total_amount': self.total_amount,
+            'unit': self.unit,
+        }
+
+
+@dataclass
+class RecommendedIntakeRequest:
+    """Request model for recommended daily intake based on consumed nutrients"""
+    nutrients_consumed: list[NutrientConsumed]
+    age_group: str = "18-29"  # Default to 18-29 as specified
+    gender: str = "general"   # 'male', 'female', 'general'
+
+    def to_dict(self):
+        """Convert to dictionary for processing"""
+        return {
+            'nutrients_consumed': [nutrient.to_dict() for nutrient in self.nutrients_consumed],
+            'age_group': self.age_group,
+            'gender': self.gender,
+        }

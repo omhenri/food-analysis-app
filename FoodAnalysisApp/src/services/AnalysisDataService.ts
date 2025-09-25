@@ -97,8 +97,12 @@ export class AnalysisDataService {
   public async getCurrentDayComparison(): Promise<ComparisonData[]> {
     try {
       const analysisResults = await this.getCurrentDayAnalysis();
-      const recommendedIntake = await this.analysisService.getRecommendedIntake();
-      
+
+      // Extract nutrients consumed from analysis results
+      const nutrientsConsumed = this.extractNutrientsConsumed(analysisResults);
+
+      const recommendedIntake = await this.analysisService.getRecommendedIntake(nutrientsConsumed);
+
       return this.calculateComparison(analysisResults, recommendedIntake);
     } catch (error) {
       console.error('Failed to get current day comparison:', error);
@@ -110,8 +114,12 @@ export class AnalysisDataService {
   public async getComparisonForDay(dayId: number): Promise<ComparisonData[]> {
     try {
       const analysisResults = await this.getAnalysisForDay(dayId);
-      const recommendedIntake = await this.analysisService.getRecommendedIntake();
-      
+
+      // Extract nutrients consumed from analysis results
+      const nutrientsConsumed = this.extractNutrientsConsumed(analysisResults);
+
+      const recommendedIntake = await this.analysisService.getRecommendedIntake(nutrientsConsumed);
+
       return this.calculateComparison(analysisResults, recommendedIntake);
     } catch (error) {
       console.error('Failed to get comparison for day:', error);
@@ -119,9 +127,50 @@ export class AnalysisDataService {
     }
   }
 
+  // Extract nutrients consumed from analysis results
+  private extractNutrientsConsumed(analysisResults: AnalysisResult[]): Array<{name: string, total_amount: number, unit: string}> {
+    const consumedAmounts: { [nutrient: string]: number } = {};
+
+    // Aggregate consumed amounts by nutrient name (normalized)
+    analysisResults.forEach(result => {
+      result.chemicalSubstances.forEach(substance => {
+        // Normalize nutrient names to match backend expectations
+        const normalizedName = substance.name.toLowerCase()
+          .replace(/\s+/g, '-')
+          .replace(/vitamin\s*c\b/, 'vitamin-c')
+          .replace(/vitamin\s*d\b/, 'vitamin-d')
+          .replace(/vitamin\s*a\b/, 'vitamin-a')
+          .replace(/vitamin\s*e\b/, 'vitamin-e')
+          .replace(/vitamin\s*k\b/, 'vitamin-k')
+          .replace(/vitamin\s*b1\b/, 'vitamin-b1')
+          .replace(/vitamin\s*b2\b/, 'vitamin-b2')
+          .replace(/vitamin\s*b3\b/, 'vitamin-b3')
+          .replace(/vitamin\s*b6\b/, 'vitamin-b6')
+          .replace(/vitamin\s*b12\b/, 'vitamin-b12')
+          .replace(/folic\s*acid/, 'folic-acid')
+          .replace(/total\s*fat/, 'fat')
+          .replace(/dietary\s*fiber/, 'fiber')
+          .replace(/sugars/, 'sugar');
+
+        if (consumedAmounts[normalizedName]) {
+          consumedAmounts[normalizedName] += substance.amount;
+        } else {
+          consumedAmounts[normalizedName] = substance.amount;
+        }
+      });
+    });
+
+    // Convert to the expected format
+    return Object.entries(consumedAmounts).map(([name, amount]) => ({
+      name,
+      total_amount: amount,
+      unit: 'grams'
+    }));
+  }
+
   // Calculate comparison between consumed and recommended amounts
   private calculateComparison(
-    analysisResults: AnalysisResult[], 
+    analysisResults: AnalysisResult[],
     recommendedIntake: RecommendedIntake
   ): ComparisonData[] {
     // Aggregate consumed amounts by substance
@@ -189,7 +238,16 @@ export class AnalysisDataService {
   }> {
     try {
       const days = await this.databaseService.getDaysForWeek(weekId);
-      const recommendedIntake = await this.analysisService.getRecommendedIntake();
+
+      // Get all nutrients consumed across the week for recommended intake
+      const allAnalysisResults: AnalysisResult[] = [];
+      for (const day of days) {
+        const dayAnalysis = await this.getAnalysisForDay(day.id);
+        allAnalysisResults.push(...dayAnalysis);
+      }
+      const nutrientsConsumed = this.extractNutrientsConsumed(allAnalysisResults);
+
+      const recommendedIntake = await this.analysisService.getRecommendedIntake(nutrientsConsumed);
       
       // Calculate weekly recommended intake (daily * 7)
       const weeklyRecommended: RecommendedIntake = {};

@@ -1,0 +1,91 @@
+{
+    "recommended_intakes": [
+      {
+        "nutrient": "protein",
+        "recommended_daily_grams": 50,
+        "unit": "grams",
+        "source": "RDA",
+        "notes": "General average recommendation for adults aged 18-29"
+      },
+      {
+        "nutrient": "fat",
+        "recommended_daily_grams": 65,
+        "unit": "grams",
+        "source": "DRI",
+        "notes": "General average recommendation based on 20-35% of total daily calories"
+      },
+      {
+        "nutrient": "carbohydrate",
+        "recommended_daily_grams": 300,
+        "unit": "grams",
+        "source": "DRI",
+        "notes": "General average recommendation based on 45-65% of total daily calories"
+      },
+      {
+        "nutrient": "fiber",
+        "recommended_daily_grams": 25,
+        "unit": "grams",
+        "source": "EFSA",
+        "notes": "Minimum recommended daily intake for adults"
+      },
+      {
+        "nutrient": "sugar",
+        "recommended_daily_grams": 50,
+        "unit": "grams",
+        "source": "WHO",
+        "notes": "Maximum recommended daily limit for added sugars"
+      },
+      {
+        "nutrient": "sodium",
+        "recommended_daily_grams": 2.3,
+        "unit": "grams",
+        "source": "WHO/FAO",
+        "notes": "Maximum recommended daily intake for adults"
+      },
+      {
+        "nutrient": "potassium",
+        "recommended_daily_grams": 3.5,
+        "unit": "grams",
+        "source": "EFSA",
+        "notes": "Adequate intake recommendation for adults"
+      },
+      {
+        "nutrient": "calcium",
+        "recommended_daily_grams": 1.0,
+        "unit": "grams",
+        "source": "RDA",
+        "notes": "Recommended daily allowance for adults aged 19-50"
+      },
+      {
+        "nutrient": "iron",
+        "recommended_daily_grams": 0.018,
+        "unit": "grams",
+        "source": "RDA",
+        "notes": "General recommendation using women's RDA to cover higher needs"
+      },
+      {
+        "nutrient": "vitamin-c",
+        "recommended_daily_grams": 0.09,
+        "unit": "grams",
+        "source": "RDA",
+        "notes": "Recommended daily allowance for adults"
+      },
+      {
+        "nutrient": "vitamin-d",
+        "recommended_daily_grams": 0.00002,
+        "unit": "grams",
+        "source": "RDA",
+        "notes": "General recommendation for adults"
+      },
+      {
+        "nutrient": "magnesium",
+        "recommended_daily_grams": 0.4,
+        "unit": "grams",
+        "source": "RDA",
+        "notes": "General average recommendation for adults"
+      }
+    ],
+    "age_group": "18-29",
+    "gender": "general",
+    "disclaimer": "These are general recommendations. Individual needs may vary based on health status, activity level, and specific conditions. Consult a healthcare professional for personalized advice."
+  }

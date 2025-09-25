@@ -54,18 +54,7 @@ export interface BackendAnalysisData {
 }
 
 export interface BackendRecommendedIntake {
-  protein?: number;
-  carbohydrates?: number;
-  fat?: number;
-  fiber?: number;
-  sugar?: number;
-  sodium?: number;
-  calcium?: number;
-  iron?: number;
-  'vitamin-c'?: number;
-  'vitamin-d'?: number;
-  potassium?: number;
-  magnesium?: number;
+  [nutrientName: string]: number;
 }
 
 export class BackendApiService {
@@ -183,38 +172,68 @@ export class BackendApiService {
 
 
   // Get recommended intake from backend
-  public async getRecommendedIntake(age?: number, gender?: string): Promise<BackendResponse<BackendRecommendedIntake>> {
+  public async getRecommendedIntake(nutrientsConsumed: Array<{name: string, total_amount: number, unit: string}>, age?: string, gender?: string): Promise<BackendResponse<BackendRecommendedIntake>> {
     try {
       console.log('Getting recommended intake from backend');
 
-      // Note: The backend doesn't have a dedicated endpoint for recommended intake yet
-      // For now, return a mock response that matches the expected format
-      // In the future, this should call a backend endpoint
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), this.timeout);
 
-      const mockRecommendedIntake: BackendRecommendedIntake = {
-        protein: 50, // grams
-        carbohydrates: 300, // grams
-        fat: 65, // grams
-        fiber: 25, // grams
-        sugar: 50, // grams
-        sodium: 2.3, // grams
-        calcium: 1, // grams
-        iron: 0.018, // grams
-        'vitamin-c': 0.09, // grams
-        'vitamin-d': 0.00002, // grams
-        potassium: 3.5, // grams
-        magnesium: 0.4, // grams
+      const requestData = {
+        nutrients_consumed: nutrientsConsumed,
+        age_group: age || '18-29',
+        gender: gender || 'general'
       };
 
-      console.log('Mock recommended intake:', mockRecommendedIntake);
+      const response = await fetch(`${this.baseUrl}/api/recommended-intake`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestData),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new BackendApiError(
+          response.status,
+          errorData.code || 'HTTP_ERROR',
+          errorData.error || `HTTP ${response.status}: ${response.statusText}`
+        );
+      }
+
+      const data = await response.json();
+      console.log('Recommended intake retrieved successfully:', data);
+
+      // Backend now returns recommended_intakes as an object directly
+      const recommendedIntake: BackendRecommendedIntake = {};
+      if (data.recommended_intakes && typeof data.recommended_intakes === 'object') {
+        // Convert nutrient names to the expected format (e.g., "vitamin_c" instead of "vitamin-c")
+        Object.entries(data.recommended_intakes).forEach(([nutrient, value]) => {
+          const nutrientKey = nutrient.replace(/-/g, '_');
+          recommendedIntake[nutrientKey] = value as number;
+        });
+      }
 
       return {
         success: true,
-        data: mockRecommendedIntake,
+        data: recommendedIntake,
       };
 
     } catch (error) {
       console.error('Failed to get recommended intake:', error);
+
+      if (error instanceof BackendApiError) {
+        return {
+          success: false,
+          error: error.message,
+          code: error.errorCode,
+        };
+      }
+
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error occurred',

@@ -54,11 +54,11 @@ export class BackendAnalysisService {
   }
 
   // Get recommended daily intake from backend
-  public async getRecommendedIntake(age: number = 25, gender?: string): Promise<RecommendedIntake> {
+  public async getRecommendedIntake(nutrientsConsumed?: Array<{name: string, total_amount: number, unit: string}>, age?: string, gender?: string): Promise<RecommendedIntake> {
     try {
       console.log('Getting recommended intake from backend');
 
-      const backendResponse = await this.backendService.getRecommendedIntake(age, gender);
+      const backendResponse = await this.backendService.getRecommendedIntake(nutrientsConsumed || [], age, gender);
 
       if (backendResponse.success && backendResponse.data) {
         console.log('Recommended intake retrieved successfully');

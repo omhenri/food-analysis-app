@@ -1319,6 +1319,24 @@ class FoodAnalyzer:
             portion_for_one=True
         ).to_dict()
 
+    def get_recommended_intake(self, nutrients_consumed: List[Dict[str, Any]], age_group: str = "18-29", gender: str = "general") -> Dict[str, Any]:
+        """
+        Get recommended daily intake values based on nutrients consumed using AI analysis
+        Returns: Structured response with recommended intakes for 18-29 year olds
+        """
+        try:
+            if self.use_mock:
+                return self._get_mock_recommended_intake(nutrients_consumed, age_group, gender)
+
+            # Use AI to generate recommended intake based on consumed nutrients
+            result = self._analyze_recommended_intake_with_ai(nutrients_consumed, age_group, gender)
+            print(f"Generated recommended intake for {len(nutrients_consumed)} nutrients")
+            return result
+
+        except Exception as e:
+            logger.error(f"Error getting recommended intake: {str(e)}")
+            return self._get_fallback_recommended_intake()
+
     def analyze_foods_comprehensive(self, foods: List[Dict[str, str]]) -> List[Dict[str, Any]]:
         """
         Analyze multiple foods using comprehensive nutritional analysis with detailed prompt
@@ -1686,4 +1704,201 @@ Output ONLY the final JSON array; no explanations, no markdown, no additional te
             fallback_responses.append(fallback_response)
 
         return fallback_responses
+
+    def _analyze_recommended_intake_with_ai(self, nutrients_consumed: List[Dict[str, Any]], age_group: str, gender: str) -> Dict[str, Any]:
+        """
+        Use AI to generate recommended daily intake based on consumed nutrients and the prompt
+        """
+        prompt_template = self._get_embedded_recommend_intake_prompt()
+
+        # Prepare the input data
+        input_data = {
+            "nutrients_consumed": nutrients_consumed
+        }
+
+        prompt = f"{prompt_template}\n\n{json.dumps(input_data)}"
+
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": "You are a professional nutritionist providing evidence-based nutritional recommendations. Always return valid JSON responses with the exact structure requested."},
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=2000,
+                temperature=0.1  # Low temperature for consistency
+            )
+
+            response_text = response.choices[0].message.content.strip()
+
+            # Parse JSON response
+            try:
+                # Clean up response text to extract JSON
+                json_start = response_text.find('{')
+                json_end = response_text.rfind('}') + 1
+
+                if json_start == -1 or json_end == 0:
+                    logger.warning(f"No JSON object found in response: {response_text[:500]}...")
+                    raise json.JSONDecodeError("No JSON object found", response_text, 0)
+
+                json_content = response_text[json_start:json_end]
+                parsed_data = json.loads(json_content)
+
+                # Validate the response structure
+                if not self._validate_recommended_intake_response(parsed_data):
+                    logger.warning("AI response has invalid structure, using fallback")
+                    return self._get_fallback_recommended_intake()
+
+                return parsed_data
+
+            except json.JSONDecodeError as e:
+                logger.error(f"Failed to parse recommended intake JSON response: {str(e)}")
+                logger.error(f"Response text: {response_text[:1000]}...")
+                return self._get_fallback_recommended_intake()
+
+        except Exception as e:
+            logger.error(f"Error in AI recommended intake analysis: {str(e)}")
+            return self._get_fallback_recommended_intake()
+
+    def _validate_recommended_intake_response(self, data: Dict[str, Any]) -> bool:
+        """
+        Validate that the AI response has the correct structure for recommended intake
+        """
+        try:
+            required_keys = {"recommended_intakes", "age_group", "gender", "disclaimer"}
+
+            if not isinstance(data, dict):
+                logger.warning("Response is not a dictionary")
+                return False
+
+            # Check required top-level keys
+            missing_keys = required_keys - set(data.keys())
+            if missing_keys:
+                logger.warning(f"Response missing keys: {missing_keys}")
+                return False
+
+            # Validate recommended_intakes structure - should now be an object, not array
+            recommended_intakes = data.get("recommended_intakes", {})
+            if not isinstance(recommended_intakes, dict) or len(recommended_intakes) == 0:
+                logger.warning("recommended_intakes is not a valid object or is empty")
+                return False
+
+            # Validate that all values are numbers
+            for nutrient, value in recommended_intakes.items():
+                if not isinstance(value, (int, float)):
+                    logger.warning(f"Recommended intake value for {nutrient} is not a number: {value}")
+                    return False
+
+            logger.info(f"Recommended intake response validation passed for {len(recommended_intakes)} nutrients")
+            return True
+
+        except Exception as e:
+            logger.error(f"Error validating recommended intake response: {str(e)}")
+            return False
+
+    def _get_embedded_recommend_intake_prompt(self) -> str:
+        """Return embedded prompt if file is not found"""
+        return """You are a professional nutritionist and dietitian specializing in evidence-based nutritional recommendations. Your task is to provide recommended daily intake values for nutrients based on a comprehensive analysis of what nutrients were consumed on a given day.
+
+INPUT:
+You will receive a JSON object containing a list of nutrients that were consumed/absorbed on a given day, with each nutrient having:
+- name: the nutrient identifier (e.g., "protein", "vitamin_c", "sodium")
+- total_amount: the total amount consumed in grams
+- unit: measurement unit (always "grams")
+
+OUTPUT REQUIREMENTS:
+Return ONLY a valid JSON object with recommended daily intake values for adults aged 18-29. The output must follow this exact structure:
+
+{
+  "recommended_intakes": {
+    "nutrient_name_1": recommended_daily_grams,
+    "nutrient_name_2": recommended_daily_grams,
+    "nutrient_name_3": recommended_daily_grams
+  },
+  "age_group": "18-29",
+  "gender": "general",
+  "disclaimer": "These are general recommendations. Individual needs may vary based on health status, activity level, and specific conditions. Consult a healthcare professional for personalized advice."
+}
+
+RECOMMENDATION GUIDELINES:
+
+1. **Macronutrients:**
+   - Protein: 50g (RDA - General average recommendation for adults aged 18-29)
+   - Fat: 65g (DRI - General average recommendation based on 20-35% of total daily calories)
+   - Carbohydrate: 300g (DRI - General average recommendation based on 45-65% of total daily calories)
+   - Fiber: 25g (EFSA - Minimum recommended daily intake for adults)
+   - Sugar: 50g (WHO - Maximum recommended daily limit for added sugars)
+
+2. **Minerals:**
+   - Sodium: 2.3g (WHO/FAO - Maximum recommended daily intake for adults)
+   - Potassium: 3.5g (EFSA - Adequate intake recommendation for adults)
+   - Calcium: 1.0g (RDA - Recommended daily allowance for adults aged 19-50)
+   - Iron: 0.018g (RDA - General recommendation using women's RDA to cover higher needs)
+   - Magnesium: 0.4g (RDA - General average recommendation for adults)
+
+3. **Vitamins:**
+   - Vitamin C: 0.09g (RDA - Recommended daily allowance for adults)
+   - Vitamin D: 0.00002g (RDA - General recommendation for adults)
+
+4. **Other nutrients:**
+   - Include any other nutrients present in the input that have established recommendations
+
+IMPORTANT NOTES:
+- Use the exact sources and notes as specified above for each nutrient
+- Focus on 18-29 age group recommendations
+- All values must be in grams
+- Return ONLY valid JSON, no additional text or formatting"""
+
+    def _get_mock_recommended_intake(self, nutrients_consumed: List[Dict[str, Any]], age_group: str, gender: str) -> Dict[str, Any]:
+        """Return mock recommended intake when API key is not available"""
+        # Base recommended intakes (matching analysisdata.json structure exactly)
+        base_recommendations = {
+            "protein": {"value": 50, "source": "RDA", "notes": "General average recommendation for adults aged 18-29"},
+            "fat": {"value": 65, "source": "DRI", "notes": "General average recommendation based on 20-35% of total daily calories"},
+            "carbohydrate": {"value": 300, "source": "DRI", "notes": "General average recommendation based on 45-65% of total daily calories"},
+            "fiber": {"value": 25, "source": "EFSA", "notes": "Minimum recommended daily intake for adults"},
+            "sugar": {"value": 50, "source": "WHO", "notes": "Maximum recommended daily limit for added sugars"},
+            "sodium": {"value": 2.3, "source": "WHO/FAO", "notes": "Maximum recommended daily intake for adults"},
+            "potassium": {"value": 3.5, "source": "EFSA", "notes": "Adequate intake recommendation for adults"},
+            "calcium": {"value": 1.0, "source": "RDA", "notes": "Recommended daily allowance for adults aged 19-50"},
+            "iron": {"value": 0.018, "source": "RDA", "notes": "General recommendation using women's RDA to cover higher needs"},
+            "vitamin-c": {"value": 0.09, "source": "RDA", "notes": "Recommended daily allowance for adults"},
+            "vitamin-d": {"value": 0.00002, "source": "RDA", "notes": "General recommendation for adults"},
+            "magnesium": {"value": 0.4, "source": "RDA", "notes": "General average recommendation for adults"}
+        }
+
+        recommended_intakes = []
+        consumed_nutrient_names = {nutrient['name'] for nutrient in nutrients_consumed}
+
+        # Build dynamic recommended intakes object
+        recommended_intakes_obj = {}
+
+        # Include recommendations for nutrients that were consumed
+        for nutrient_name in consumed_nutrient_names:
+            if nutrient_name in base_recommendations:
+                recommended_intakes_obj[nutrient_name] = base_recommendations[nutrient_name]["value"]
+
+        # If no specific nutrients were consumed, return all recommendations
+        if not recommended_intakes_obj:
+            for nutrient_name, rec in base_recommendations.items():
+                recommended_intakes_obj[nutrient_name] = rec["value"]
+
+        return {
+            "recommended_intakes": recommended_intakes_obj,
+            "age_group": age_group,
+            "gender": gender,
+            "disclaimer": "These are general recommendations. Individual needs may vary based on health status, activity level, and specific conditions. Consult a healthcare professional for personalized advice."
+        }
+
+    def _get_fallback_recommended_intake(self) -> Dict[str, Any]:
+        """Return fallback recommended intake when analysis fails"""
+        return {
+            "recommended_intakes": {
+                "protein": 50,
+                "carbohydrates": 300
+            },
+            "age_group": "18-29",
+            "gender": "general",
+            "disclaimer": "Analysis temporarily unavailable. Using general recommendations. Individual needs may vary based on health status, activity level, and specific conditions. Consult a healthcare professional for personalized advice."
+        }
 

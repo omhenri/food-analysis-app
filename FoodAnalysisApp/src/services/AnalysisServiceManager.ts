@@ -56,11 +56,11 @@ export class AnalysisServiceManager {
   }
 
   // Get recommended daily intake
-  public async getRecommendedIntake(age: number = 25, gender?: string): Promise<RecommendedIntake> {
+  public async getRecommendedIntake(nutrientsConsumed?: Array<{name: string, total_amount: number, unit: string}>, age?: string, gender?: string): Promise<RecommendedIntake> {
     if (this.config.useMockService) {
-      return this.mockService.getRecommendedIntake(age);
+      return this.mockService.getRecommendedIntake(nutrientsConsumed || [], age, gender);
     } else {
-      return this.aiService.getRecommendedIntake(age);
+      return this.aiService.getRecommendedIntake(nutrientsConsumed, age, gender);
     }
   }
 
