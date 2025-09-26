@@ -15,6 +15,11 @@ import { Colors, Spacing, BorderRadius, FontSizes } from '../constants/theme';
 import { useAnalysisData } from '../hooks/useAnalysisData';
 import { BackendNeutralizationRecommendations } from '../services/BackendApiService';
 import { AnalysisServiceManager } from '../services/AnalysisServiceManager';
+import { useNavigation } from '@react-navigation/native';
+import { StackNavigationProp } from '@react-navigation/stack';
+import { InputStackParamList } from '../navigation/AppNavigator';
+
+type ComparisonScreenNavigationProp = StackNavigationProp<InputStackParamList, 'Comparison'>;
 
 interface ComparisonScreenProps {
   analysisResults?: AnalysisResult[];
@@ -34,6 +39,7 @@ export const ComparisonScreen: React.FC<ComparisonScreenProps> = ({
     hasComparisonData,
   } = useAnalysisData();
 
+  const navigation = useNavigation<ComparisonScreenNavigationProp>();
   const analysisServiceManager = AnalysisServiceManager.getInstance();
 
   const [filterStatus, setFilterStatus] = useState<'all' | 'under' | 'optimal' | 'over'>('all');
@@ -111,21 +117,8 @@ export const ComparisonScreen: React.FC<ComparisonScreenProps> = ({
       // Call neutralization recommendations using AnalysisServiceManager
       const data = await analysisServiceManager.getNeutralizationRecommendations(overdosed);
 
-      // Show recommendations in an alert or navigate to a new screen
-      Alert.alert(
-        'Neutralization Recommendations',
-        `Recommendations received for: ${overdosed.join(', ')}\n\nCheck console for detailed recommendations.`,
-        [
-          { text: 'OK' },
-          {
-            text: 'View Details',
-            onPress: () => {
-              console.log('Detailed recommendations:', JSON.stringify(data.recommendations, null, 2));
-              console.log('Disclaimer:', data.disclaimer);
-            }
-          }
-        ]
-      );
+      // Navigate to the neutralization recommendations screen within the same stack
+      navigation.navigate('NeutralizationRecommendations', { recommendations: data });
     } catch (error) {
       console.error('Error fetching recommendations:', error);
       Alert.alert(

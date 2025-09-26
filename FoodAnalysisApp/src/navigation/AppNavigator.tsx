@@ -12,6 +12,7 @@ import { ConnectedComparisonScreen } from '../screens/ConnectedComparisonScreen'
 import { PastRecordsScreen } from '../screens/PastRecordsScreen';
 import { DayDetailScreen } from '../screens/DayDetailScreen';
 import { WeeklyReportScreen } from '../screens/WeeklyReportScreen';
+import { NeutralizationRecommendationsScreen } from '../screens/NeutralizationRecommendationsScreen';
 
 // Constants
 import { Colors, FontSizes } from '../constants/theme';
@@ -26,6 +27,7 @@ export type InputStackParamList = {
   FoodInput: undefined;
   Analysis: { foods: any[] };
   Comparison: { analysisResults: any[] };
+  NeutralizationRecommendations: { recommendations: any };
 };
 
 export type RecordsStackParamList = {
@@ -117,6 +119,10 @@ const InputStackNavigator: React.FC = () => {
       <InputStack.Screen
         name="Comparison"
         component={ConnectedComparisonScreen}
+      />
+      <InputStack.Screen
+        name="NeutralizationRecommendations"
+        component={NeutralizationRecommendationsScreen}
       />
     </InputStack.Navigator>
   );
