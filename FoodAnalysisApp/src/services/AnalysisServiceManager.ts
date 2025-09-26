@@ -1,5 +1,6 @@
 import { BackendAnalysisService } from './BackendAnalysisService';import { MockAIService } from './MockAIService';
 import { FoodItem, AnalysisResult, RecommendedIntake } from '../models/types';
+import { BackendNeutralizationRecommendations } from './BackendApiService';
 
 export interface AnalysisConfig {
   useMockService: boolean;
@@ -61,6 +62,23 @@ export class AnalysisServiceManager {
       return this.mockService.getRecommendedIntake(nutrientsConsumed || [], age, gender);
     } else {
       return this.aiService.getRecommendedIntake(nutrientsConsumed, age, gender);
+    }
+  }
+
+  // Get neutralization recommendations for over-dosed substances
+  public async getNeutralizationRecommendations(overdosedSubstances: string[]): Promise<BackendNeutralizationRecommendations> {
+    if (this.config.useMockService) {
+      return this.mockService.getNeutralizationRecommendations(overdosedSubstances);
+    } else {
+      // Use BackendApiService for neutralization recommendations
+      const backendApiService = require('./BackendApiService').BackendApiService.getInstance();
+      const response = await backendApiService.getNeutralizationRecommendations(overdosedSubstances);
+
+      if (response.success && response.data) {
+        return response.data;
+      } else {
+        throw new Error(response.error || 'Failed to get neutralization recommendations');
+      }
     }
   }
 

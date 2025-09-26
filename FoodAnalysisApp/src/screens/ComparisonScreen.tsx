@@ -13,6 +13,8 @@ import { ComparisonData, AnalysisResult } from '../models/types';
 import { ComparisonCard } from '../components/ComparisonCard';
 import { Colors, Spacing, BorderRadius, FontSizes } from '../constants/theme';
 import { useAnalysisData } from '../hooks/useAnalysisData';
+import { BackendNeutralizationRecommendations } from '../services/BackendApiService';
+import { AnalysisServiceManager } from '../services/AnalysisServiceManager';
 
 interface ComparisonScreenProps {
   analysisResults?: AnalysisResult[];
@@ -32,7 +34,10 @@ export const ComparisonScreen: React.FC<ComparisonScreenProps> = ({
     hasComparisonData,
   } = useAnalysisData();
 
+  const analysisServiceManager = AnalysisServiceManager.getInstance();
+
   const [filterStatus, setFilterStatus] = useState<'all' | 'under' | 'optimal' | 'over'>('all');
+  const [isLoadingRecommendations, setIsLoadingRecommendations] = useState<boolean>(false);
 
   useEffect(() => {
     loadComparison();
@@ -85,6 +90,51 @@ export const ComparisonScreen: React.FC<ComparisonScreenProps> = ({
     }
 
     return `${optimal} optimal, ${under} below, ${over} above recommended levels`;
+  };
+
+  const getOverdosedSubstances = (): string[] => {
+    return comparisonData
+      .filter(item => item.status === 'over')
+      .map(item => item.substance);
+  };
+
+  const handleRecommendationPress = async () => {
+    const overdosed = getOverdosedSubstances();
+    if (overdosed.length === 0) {
+      Alert.alert('No Over-dosed Substances', 'You don\'t have any substances above recommended levels.');
+      return;
+    }
+
+    try {
+      setIsLoadingRecommendations(true);
+
+      // Call neutralization recommendations using AnalysisServiceManager
+      const data = await analysisServiceManager.getNeutralizationRecommendations(overdosed);
+
+      // Show recommendations in an alert or navigate to a new screen
+      Alert.alert(
+        'Neutralization Recommendations',
+        `Recommendations received for: ${overdosed.join(', ')}\n\nCheck console for detailed recommendations.`,
+        [
+          { text: 'OK' },
+          {
+            text: 'View Details',
+            onPress: () => {
+              console.log('Detailed recommendations:', JSON.stringify(data.recommendations, null, 2));
+              console.log('Disclaimer:', data.disclaimer);
+            }
+          }
+        ]
+      );
+    } catch (error) {
+      console.error('Error fetching recommendations:', error);
+      Alert.alert(
+        'Connection Error',
+        'Unable to connect to the server. Please check your connection and try again.'
+      );
+    } finally {
+      setIsLoadingRecommendations(false);
+    }
   };
 
   const renderFilterButtons = () => {
@@ -206,7 +256,29 @@ export const ComparisonScreen: React.FC<ComparisonScreenProps> = ({
             </View>
           )}
         </ScrollView>
+
         {/* Bottom Info */}
+        {hasComparisonData() && getOverdosedSubstances().length > 0 && (
+          <View style={styles.bottomInfo}>
+            <Text style={styles.bottomInfoText}>
+              Need help balancing your nutrients?
+            </Text>
+            <TouchableOpacity
+              style={styles.recommendationButton}
+              onPress={handleRecommendationPress}
+              activeOpacity={0.7}
+              disabled={isLoadingRecommendations}
+            >
+              {isLoadingRecommendations ? (
+                <ActivityIndicator size="small" color={Colors.white} />
+              ) : (
+                <Text style={styles.recommendationButtonText}>
+                  Get Recommendations
+                </Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
     </SafeAreaView>
   );
@@ -305,6 +377,36 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingBottom: Spacing.lg,
+  },
+  bottomInfo: {
+    backgroundColor: Colors.white,
+    borderRadius: BorderRadius.medium,
+    padding: Spacing.md,
+    marginVertical: Spacing.sm,
+    alignItems: 'center',
+    shadowColor: Colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  bottomInfoText: {
+    fontSize: FontSizes.small,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: Spacing.sm,
+  },
+  recommendationButton: {
+    backgroundColor: Colors.primary,
+    borderRadius: BorderRadius.medium,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.lg,
+    alignItems: 'center',
+  },
+  recommendationButtonText: {
+    fontSize: FontSizes.medium,
+    color: Colors.white,
+    fontWeight: '600',
   },
   loadingContainer: {
     flex: 1,

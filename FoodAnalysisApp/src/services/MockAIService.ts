@@ -1,4 +1,5 @@
 import { FoodItem, AnalysisResult, ChemicalSubstance, RecommendedIntake } from '../models/types';
+import { BackendNeutralizationRecommendations } from './BackendApiService';
 
 // Import mock data
 import singleFoodAnalysis from '../mockdata/responses/single-food-analysis.json';
@@ -79,6 +80,94 @@ export class MockAIService {
     }
 
     return baseRecommendations;
+  }
+
+  // Mock neutralization recommendations
+  public async getNeutralizationRecommendations(overdosedSubstances: string[]): Promise<BackendNeutralizationRecommendations> {
+    await this.delay(1000); // Simulate API delay
+
+    const mockRecommendations: BackendNeutralizationRecommendations = {
+      success: true,
+      recommendations: {},
+      overdosed_substances: overdosedSubstances,
+      disclaimer: "This is AI-generated information for educational purposes only and should not be considered as professional medical or nutritional advice."
+    };
+
+    // Initialize recommendation categories
+    mockRecommendations.recommendations = {
+      food_recommendations: [],
+      activity_recommendations: [],
+      drink_recommendations: [],
+      supplement_recommendations: [],
+      lifestyle_recommendations: []
+    };
+
+    for (const substance of overdosedSubstances) {
+      const substanceLower = substance.toLowerCase();
+
+      if (substanceLower.includes('sodium') || substanceLower.includes('salt')) {
+        mockRecommendations.recommendations.food_recommendations?.push({
+          substance: substance,
+          foods: ['potassium-rich foods (bananas, spinach, avocados)', 'watermelon', 'oranges'],
+          reasoning: 'Potassium helps balance sodium levels in the body',
+          timing: 'Throughout the day'
+        });
+        mockRecommendations.recommendations.drink_recommendations?.push({
+          substance: substance,
+          drinks: ['herbal teas', 'coconut water', 'electrolyte-balanced drinks'],
+          reasoning: 'Helps flush excess sodium and maintain hydration',
+          amount: '8-10 glasses of water daily'
+        });
+      } else if (substanceLower.includes('sugar') || substanceLower.includes('carbohydrates')) {
+        mockRecommendations.recommendations.activity_recommendations?.push({
+          substance: substance,
+          activities: ['brisk walking', 'cycling', 'swimming'],
+          duration: '30-45 minutes',
+          reasoning: 'Exercise helps utilize excess carbohydrates as energy'
+        });
+        mockRecommendations.recommendations.food_recommendations?.push({
+          substance: substance,
+          foods: ['high-fiber vegetables', 'lean proteins', 'whole grains'],
+          reasoning: 'Fiber slows sugar absorption and provides balanced nutrition',
+          timing: 'With each meal'
+        });
+      } else if (substanceLower.includes('protein')) {
+        mockRecommendations.recommendations.activity_recommendations?.push({
+          substance: substance,
+          activities: ['weight training', 'resistance exercises', 'yoga'],
+          duration: '45-60 minutes',
+          reasoning: 'Building muscle utilizes excess protein amino acids'
+        });
+      } else if (substanceLower.includes('fat') || substanceLower.includes('cholesterol')) {
+        mockRecommendations.recommendations.activity_recommendations?.push({
+          substance: substance,
+          activities: ['cardiovascular exercise', 'moderate aerobic activities'],
+          duration: '30-45 minutes',
+          reasoning: 'Exercise helps metabolize excess fats and improve cardiovascular health'
+        });
+        mockRecommendations.recommendations.lifestyle_recommendations?.push({
+          substance: substance,
+          advice: ['Focus on heart-healthy fats', 'Include omega-3 rich foods in your diet'],
+          reasoning: 'Long-term dietary adjustments for fat metabolism'
+        });
+      } else {
+        mockRecommendations.recommendations.lifestyle_recommendations?.push({
+          substance: substance,
+          advice: ['Stay hydrated', 'Monitor intake for a few days', 'Consult a nutritionist if concerned'],
+          reasoning: 'General balancing approach for nutrient excess'
+        });
+      }
+    }
+
+    // Remove empty categories
+    Object.keys(mockRecommendations.recommendations).forEach(key => {
+      const category = mockRecommendations.recommendations[key as keyof typeof mockRecommendations.recommendations];
+      if (Array.isArray(category) && category.length === 0) {
+        delete mockRecommendations.recommendations[key as keyof typeof mockRecommendations.recommendations];
+      }
+    });
+
+    return mockRecommendations;
   }
 
   // Convert backend JSON response to AnalysisResult format

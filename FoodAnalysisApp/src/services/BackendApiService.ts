@@ -57,6 +57,44 @@ export interface BackendRecommendedIntake {
   [nutrientName: string]: number;
 }
 
+export interface BackendNeutralizationRecommendations {
+  success: boolean;
+  recommendations: {
+    food_recommendations?: Array<{
+      substance: string;
+      foods: string[];
+      reasoning: string;
+      timing: string;
+    }>;
+    activity_recommendations?: Array<{
+      substance: string;
+      activities: string[];
+      duration: string;
+      reasoning: string;
+    }>;
+    drink_recommendations?: Array<{
+      substance: string;
+      drinks: string[];
+      reasoning: string;
+      amount: string;
+    }>;
+    supplement_recommendations?: Array<{
+      substance: string;
+      supplements: string[];
+      dosage: string;
+      reasoning: string;
+      caution: string;
+    }>;
+    lifestyle_recommendations?: Array<{
+      substance: string;
+      advice: string[];
+      reasoning: string;
+    }>;
+  };
+  overdosed_substances: string[];
+  disclaimer: string;
+}
+
 export class BackendApiService {
   private static instance: BackendApiService;
   private baseUrl: string = 'http://localhost:8000'; // Default backend URL
@@ -225,6 +263,64 @@ export class BackendApiService {
 
     } catch (error) {
       console.error('Failed to get recommended intake:', error);
+
+      if (error instanceof BackendApiError) {
+        return {
+          success: false,
+          error: error.message,
+          code: error.errorCode,
+        };
+      }
+
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error occurred',
+      };
+    }
+  }
+
+  // Get neutralization recommendations from backend
+  public async getNeutralizationRecommendations(overdosedSubstances: string[]): Promise<BackendResponse<BackendNeutralizationRecommendations>> {
+    try {
+      console.log('Getting neutralization recommendations from backend');
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+
+      const requestData = {
+        overdosed_substances: overdosedSubstances,
+      };
+
+      const response = await fetch(`${this.baseUrl}/api/neutralization-recommendations`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestData),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new BackendApiError(
+          response.status,
+          errorData.code || 'HTTP_ERROR',
+          errorData.error || `HTTP ${response.status}: ${response.statusText}`
+        );
+      }
+
+      const data = await response.json();
+      console.log('Neutralization recommendations retrieved successfully');
+
+      return {
+        success: true,
+        data,
+      };
+
+    } catch (error) {
+      console.error('Failed to get neutralization recommendations:', error);
 
       if (error instanceof BackendApiError) {
         return {

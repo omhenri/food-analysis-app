@@ -263,3 +263,81 @@ def get_recommended_intake():
             'error': 'Internal server error. Please try again later.',
             'code': 'INTERNAL_ERROR'
         }), 500
+
+
+@api_bp.route('/neutralization-recommendations', methods=['POST'])
+def get_neutralization_recommendations():
+    """
+    Get recommendations to neutralize over-dosed substances
+    Expects: {"overdosed_substances": ["sodium", "sugar", ...]}
+    Returns: {"success": true, "recommendations": {...}, "overdosed_substances": [...], "disclaimer": "..."}
+    """
+    try:
+        # Get client IP for rate limiting
+        client_ip = request.remote_addr or request.environ.get('HTTP_X_FORWARDED_FOR', 'unknown')
+
+        # Check rate limit
+        if not rate_limiter.is_allowed(client_ip):
+            logger.warning(f"Rate limit exceeded for IP: {client_ip}")
+            return jsonify({
+                'error': 'Rate limit exceeded. Please try again later.',
+                'code': 'RATE_LIMIT_EXCEEDED'
+            }), 429
+
+        # Get and validate input
+        data = request.get_json()
+
+        if not data:
+            return jsonify({
+                'error': 'Missing request data',
+                'code': 'MISSING_DATA'
+            }), 400
+
+        # Validate required fields
+        if 'overdosed_substances' not in data:
+            return jsonify({
+                'error': 'Missing overdosed_substances field',
+                'code': 'MISSING_OVERDOSED_SUBSTANCES'
+            }), 400
+
+        overdosed_substances = data['overdosed_substances']
+        if not isinstance(overdosed_substances, list):
+            return jsonify({
+                'error': 'overdosed_substances must be an array',
+                'code': 'INVALID_OVERDOSED_SUBSTANCES_FORMAT'
+            }), 400
+
+        if len(overdosed_substances) == 0:
+            return jsonify({
+                'error': 'overdosed_substances array cannot be empty',
+                'code': 'EMPTY_OVERDOSED_SUBSTANCES_ARRAY'
+            }), 400
+
+        # Validate each substance (should be a non-empty string)
+        validated_substances = []
+        for i, substance in enumerate(overdosed_substances):
+            if not isinstance(substance, str) or not substance.strip():
+                return jsonify({
+                    'error': f'Invalid substance name at index {i}',
+                    'code': 'INVALID_SUBSTANCE_NAME'
+                }), 400
+            validated_substances.append(substance.strip())
+
+        # Log the request
+        logger.info(f"Getting neutralization recommendations for {len(validated_substances)} substances from IP: {client_ip}")
+
+        # Get neutralization recommendations using AI analysis
+        result = food_analyzer.get_neutralization_recommendations(validated_substances)
+
+        # Update rate limiter
+        rate_limiter.record_request(client_ip)
+
+        # Return successful response
+        return jsonify(result), 200
+
+    except Exception as e:
+        logger.error(f"Error getting neutralization recommendations: {str(e)}", exc_info=True)
+        return jsonify({
+            'error': 'Internal server error. Please try again later.',
+            'code': 'INTERNAL_ERROR'
+        }), 500

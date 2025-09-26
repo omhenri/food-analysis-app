@@ -1905,3 +1905,231 @@ IMPORTANT NOTES:
             "disclaimer": "Analysis temporarily unavailable. Using general recommendations. Individual needs may vary based on health status, activity level, and specific conditions. Consult a healthcare professional for personalized advice."
         }
 
+    def get_neutralization_recommendations(self, overdosed_substances: List[str]) -> Dict[str, Any]:
+        """
+        Generate recommendations to neutralize over-dosed substances through various methods
+        including food, physical activities, drinks, and supplements.
+
+        Args:
+            overdosed_substances: List of substance names that are over the recommended levels
+
+        Returns:
+            Dict containing recommendations categorized by method
+        """
+        try:
+            if not overdosed_substances:
+                return {
+                    "success": False,
+                    "error": "No over-dosed substances provided",
+                    "recommendations": {},
+                    "disclaimer": self.disclaimer
+                }
+
+            # Create prompt for AI
+            prompt = self._get_neutralization_prompt(overdosed_substances)
+
+            if self.use_mock:
+                return self._get_mock_neutralization_recommendations(overdosed_substances)
+
+            # Call AI for recommendations
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "You are a nutrition and health expert. Provide safe, evidence-based recommendations for balancing nutrient levels."
+                    },
+                    {
+                        "role": "user",
+                        "content": prompt
+                    }
+                ],
+                temperature=0.3,
+                max_tokens=2000
+            )
+
+            ai_response = response.choices[0].message.content
+            logger.info(f"AI response for neutralization: {ai_response}")
+
+            # Parse and validate response
+            return self._parse_neutralization_response(ai_response, overdosed_substances)
+
+        except Exception as e:
+            logger.error(f"Error getting neutralization recommendations: {str(e)}")
+            return self._get_fallback_neutralization_recommendations(overdosed_substances)
+
+    def _get_neutralization_prompt(self, overdosed_substances: List[str]) -> str:
+        """Generate prompt for neutralization recommendations"""
+        substances_str = ", ".join(overdosed_substances)
+
+        return f"""
+        The user has consumed excessive amounts of the following nutrients/substances: {substances_str}
+
+        Please provide practical, safe recommendations to help neutralize or balance these over-consumed nutrients through various methods:
+
+        1. FOOD CHOICES: Suggest foods that can help balance or counteract the excess
+        2. PHYSICAL ACTIVITIES: Recommend exercises or activities that may help metabolize or utilize the excess nutrients
+        3. DRINKS/BEVERAGES: Suggest drinks that may help with elimination or balancing
+        4. SUPPLEMENTS: Recommend safe supplements that may help (if appropriate)
+        5. GENERAL LIFESTYLE: Other lifestyle recommendations
+
+        IMPORTANT SAFETY GUIDELINES:
+        - Never suggest harmful practices
+        - Focus on natural, safe methods
+        - Include hydration recommendations when relevant
+        - Suggest consulting healthcare professionals for serious imbalances
+        - Be specific about timing and amounts when possible
+
+        Format your response as a valid JSON object with this structure:
+        {{
+            "food_recommendations": [
+                {{
+                    "substance": "substance_name",
+                    "foods": ["food1", "food2"],
+                    "reasoning": "brief explanation",
+                    "timing": "when to consume"
+                }}
+            ],
+            "activity_recommendations": [
+                {{
+                    "substance": "substance_name",
+                    "activities": ["activity1", "activity2"],
+                    "duration": "recommended duration",
+                    "reasoning": "brief explanation"
+                }}
+            ],
+            "drink_recommendations": [
+                {{
+                    "substance": "substance_name",
+                    "drinks": ["drink1", "drink2"],
+                    "reasoning": "brief explanation",
+                    "amount": "recommended amount"
+                }}
+            ],
+            "supplement_recommendations": [
+                {{
+                    "substance": "substance_name",
+                    "supplements": ["supplement1", "supplement2"],
+                    "dosage": "recommended dosage",
+                    "reasoning": "brief explanation",
+                    "caution": "any precautions"
+                }}
+            ],
+            "lifestyle_recommendations": [
+                {{
+                    "substance": "substance_name",
+                    "advice": ["advice1", "advice2"],
+                    "reasoning": "brief explanation"
+                }}
+            ]
+        }}
+
+        Be specific, practical, and prioritize safety. Focus on evidence-based approaches when possible.
+        """
+
+    def _parse_neutralization_response(self, ai_response: str, overdosed_substances: List[str]) -> Dict[str, Any]:
+        """Parse AI response for neutralization recommendations"""
+        try:
+            # Clean the response
+            cleaned_response = ai_response.strip()
+            if cleaned_response.startswith("```json"):
+                cleaned_response = cleaned_response[7:]
+            if cleaned_response.endswith("```"):
+                cleaned_response = cleaned_response[:-3]
+
+            parsed_data = json.loads(cleaned_response.strip())
+
+            # Validate structure
+            if not isinstance(parsed_data, dict):
+                raise ValueError("Response is not a valid object")
+
+            return {
+                "success": True,
+                "recommendations": parsed_data,
+                "overdosed_substances": overdosed_substances,
+                "disclaimer": self.disclaimer
+            }
+
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse neutralization response: {e}")
+            return self._get_fallback_neutralization_recommendations(overdosed_substances)
+        except Exception as e:
+            logger.error(f"Error parsing neutralization response: {e}")
+            return self._get_fallback_neutralization_recommendations(overdosed_substances)
+
+    def _get_mock_neutralization_recommendations(self, overdosed_substances: List[str]) -> Dict[str, Any]:
+        """Return mock neutralization recommendations for testing"""
+        mock_recommendations = {
+            "food_recommendations": [],
+            "activity_recommendations": [],
+            "drink_recommendations": [],
+            "supplement_recommendations": [],
+            "lifestyle_recommendations": []
+        }
+
+        for substance in overdosed_substances:
+            substance_lower = substance.lower()
+            if "sodium" in substance_lower or "salt" in substance_lower:
+                mock_recommendations["food_recommendations"].append({
+                    "substance": substance,
+                    "foods": ["potassium-rich foods (bananas, spinach, avocados)", "watermelon", "oranges"],
+                    "reasoning": "Potassium helps balance sodium levels in the body",
+                    "timing": "Throughout the day"
+                })
+                mock_recommendations["drink_recommendations"].append({
+                    "substance": substance,
+                    "drinks": ["herbal teas", "coconut water", "electrolyte-balanced drinks"],
+                    "reasoning": "Helps flush excess sodium and maintain hydration",
+                    "amount": "8-10 glasses of water daily"
+                })
+            elif "sugar" in substance_lower or "carbohydrates" in substance_lower:
+                mock_recommendations["activity_recommendations"].append({
+                    "substance": substance,
+                    "activities": ["brisk walking", "cycling", "swimming"],
+                    "duration": "30-45 minutes",
+                    "reasoning": "Exercise helps utilize excess carbohydrates as energy"
+                })
+                mock_recommendations["food_recommendations"].append({
+                    "substance": substance,
+                    "foods": ["high-fiber vegetables", "lean proteins", "whole grains"],
+                    "reasoning": "Fiber slows sugar absorption and provides balanced nutrition",
+                    "timing": "With each meal"
+                })
+            elif "protein" in substance_lower:
+                mock_recommendations["activity_recommendations"].append({
+                    "substance": substance,
+                    "activities": ["weight training", "resistance exercises", "yoga"],
+                    "duration": "45-60 minutes",
+                    "reasoning": "Building muscle utilizes excess protein amino acids"
+                })
+            else:
+                mock_recommendations["lifestyle_recommendations"].append({
+                    "substance": substance,
+                    "advice": ["Stay hydrated", "Monitor intake for a few days", "Consult a nutritionist if concerned"],
+                    "reasoning": "General balancing approach for nutrient excess"
+                })
+
+        return {
+            "success": True,
+            "recommendations": mock_recommendations,
+            "overdosed_substances": overdosed_substances,
+            "disclaimer": self.disclaimer
+        }
+
+    def _get_fallback_neutralization_recommendations(self, overdosed_substances: List[str]) -> Dict[str, Any]:
+        """Return fallback recommendations when AI analysis fails"""
+        return {
+            "success": False,
+            "error": "Unable to generate personalized recommendations at this time",
+            "recommendations": {
+                "general_advice": [
+                    "Stay well hydrated with water",
+                    "Consider lighter meals for the next 24 hours",
+                    "Focus on balanced nutrition moving forward",
+                    "Consult a healthcare professional if you have concerns about nutrient levels"
+                ]
+            },
+            "overdosed_substances": overdosed_substances,
+            "disclaimer": "General recommendations only. Please consult a healthcare professional for personalized advice regarding nutrient imbalances."
+        }
+
