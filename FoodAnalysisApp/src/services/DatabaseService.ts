@@ -5,6 +5,7 @@ import {
   FoodEntry,
   AnalysisResult,
   WeeklyData,
+  ComparisonData,
 } from '../models/types';
 import {
   DATABASE_NAME,
@@ -312,6 +313,87 @@ export class DatabaseService {
       return analysisResults;
     } catch (error) {
       console.error('Failed to get analysis for day:', error);
+      throw error;
+    }
+  }
+
+  // Save comparison result for a day (replace existing)
+  public async saveComparisonResult(dayId: number, comparisonData: ComparisonData[]): Promise<void> {
+    if (!this.database) {
+      throw new Error('Database not initialized');
+    }
+
+    try {
+      const comparisonJson = JSON.stringify(comparisonData);
+
+      // Replace existing comparison data for this day
+      await this.database.executeSql(
+        `INSERT OR REPLACE INTO comparison_results (day_id, comparison_data, updated_at)
+         VALUES (?, ?, datetime('now'))`,
+        [dayId, comparisonJson]
+      );
+    } catch (error) {
+      console.error('Failed to save comparison result:', error);
+      throw error;
+    }
+  }
+
+  // Get comparison result for a day
+  public async getComparisonForDay(dayId: number): Promise<ComparisonData[] | null> {
+    if (!this.database) {
+      throw new Error('Database not initialized');
+    }
+
+    try {
+      const [results] = await this.database.executeSql(
+        'SELECT comparison_data FROM comparison_results WHERE day_id = ?',
+        [dayId]
+      );
+
+      if (results.rows.length > 0) {
+        const row = results.rows.item(0);
+        return JSON.parse(row.comparison_data);
+      }
+
+      return null; // No comparison data found
+    } catch (error) {
+      console.error('Failed to get comparison for day:', error);
+      throw error;
+    }
+  }
+
+  // Check if comparison data exists for a day
+  public async hasComparisonForDay(dayId: number): Promise<boolean> {
+    if (!this.database) {
+      throw new Error('Database not initialized');
+    }
+
+    try {
+      const [results] = await this.database.executeSql(
+        'SELECT COUNT(*) as count FROM comparison_results WHERE day_id = ?',
+        [dayId]
+      );
+
+      return results.rows.item(0).count > 0;
+    } catch (error) {
+      console.error('Failed to check comparison for day:', error);
+      return false;
+    }
+  }
+
+  // Delete comparison result for a day
+  public async deleteComparisonForDay(dayId: number): Promise<void> {
+    if (!this.database) {
+      throw new Error('Database not initialized');
+    }
+
+    try {
+      await this.database.executeSql(
+        'DELETE FROM comparison_results WHERE day_id = ?',
+        [dayId]
+      );
+    } catch (error) {
+      console.error('Failed to delete comparison for day:', error);
       throw error;
     }
   }

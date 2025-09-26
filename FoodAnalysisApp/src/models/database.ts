@@ -50,11 +50,23 @@ export const CREATE_ANALYSIS_RESULTS_TABLE = `
   );
 `;
 
+export const CREATE_COMPARISON_RESULTS_TABLE = `
+  CREATE TABLE IF NOT EXISTS comparison_results (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    day_id INTEGER NOT NULL UNIQUE,
+    comparison_data TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (day_id) REFERENCES days (id) ON DELETE CASCADE
+  );
+`;
+
 // Index creation for better performance
 export const CREATE_INDEXES = [
   'CREATE INDEX IF NOT EXISTS idx_days_week_id ON days (week_id);',
   'CREATE INDEX IF NOT EXISTS idx_food_entries_day_id ON food_entries (day_id);',
   'CREATE INDEX IF NOT EXISTS idx_analysis_results_food_entry_id ON analysis_results (food_entry_id);',
+  'CREATE INDEX IF NOT EXISTS idx_comparison_results_day_id ON comparison_results (day_id);',
 ];
 
 // All table creation statements
@@ -63,5 +75,6 @@ export const CREATE_TABLES = [
   CREATE_DAYS_TABLE,
   CREATE_FOOD_ENTRIES_TABLE,
   CREATE_ANALYSIS_RESULTS_TABLE,
+  CREATE_COMPARISON_RESULTS_TABLE,
   ...CREATE_INDEXES,
 ];

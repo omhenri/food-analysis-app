@@ -35,25 +35,35 @@ export class AnalysisDataService {
     try {
       // First save the food entries
       const entryIds = await this.foodService.saveFoodItems(foods);
-      
+
       // Perform AI analysis
       const analysisResults = await this.analysisService.analyzeFoods(foods);
-      
+
       // Associate analysis results with database entry IDs and save
       const savedResults: AnalysisResult[] = [];
       for (let i = 0; i < analysisResults.length; i++) {
         const result = analysisResults[i];
         const entryId = entryIds[i];
-        
+
         const resultWithEntryId: AnalysisResult = {
           ...result,
           foodEntryId: entryId,
         };
-        
+
         await this.databaseService.saveAnalysisResult(resultWithEntryId);
         savedResults.push(resultWithEntryId);
       }
-      
+
+      // After saving new analysis results, invalidate stored comparison data for the current day
+      // so it gets regenerated next time it's requested
+      try {
+        const currentDay = await this.foodService.getCurrentDay();
+        await this.databaseService.deleteComparisonForDay(currentDay.id);
+      } catch (error) {
+        // Don't fail the entire operation if we can't delete comparison data
+        console.warn('Failed to invalidate comparison data after analysis:', error);
+      }
+
       return savedResults;
     } catch (error) {
       console.error('Failed to analyze and save foods:', error);
@@ -96,6 +106,15 @@ export class AnalysisDataService {
   // Get comparison data for current day
   public async getCurrentDayComparison(): Promise<ComparisonData[]> {
     try {
+      const currentDay = await this.foodService.getCurrentDay();
+
+      // First check if we have stored comparison data
+      const storedComparison = await this.databaseService.getComparisonForDay(currentDay.id);
+      if (storedComparison) {
+        return storedComparison;
+      }
+
+      // If no stored comparison, generate it
       const analysisResults = await this.getCurrentDayAnalysis();
 
       // Extract nutrients consumed from analysis results
@@ -103,7 +122,12 @@ export class AnalysisDataService {
 
       const recommendedIntake = await this.analysisService.getRecommendedIntake(nutrientsConsumed);
 
-      return this.calculateComparison(analysisResults, recommendedIntake);
+      const comparisonData = this.calculateComparison(analysisResults, recommendedIntake);
+
+      // Store the comparison data for future use
+      await this.databaseService.saveComparisonResult(currentDay.id, comparisonData);
+
+      return comparisonData;
     } catch (error) {
       console.error('Failed to get current day comparison:', error);
       throw new Error(`Failed to get current day comparison: ${error}`);
@@ -113,6 +137,13 @@ export class AnalysisDataService {
   // Get comparison data for a specific day
   public async getComparisonForDay(dayId: number): Promise<ComparisonData[]> {
     try {
+      // First check if we have stored comparison data
+      const storedComparison = await this.databaseService.getComparisonForDay(dayId);
+      if (storedComparison) {
+        return storedComparison;
+      }
+
+      // If no stored comparison, generate it
       const analysisResults = await this.getAnalysisForDay(dayId);
 
       // Extract nutrients consumed from analysis results
@@ -120,7 +151,12 @@ export class AnalysisDataService {
 
       const recommendedIntake = await this.analysisService.getRecommendedIntake(nutrientsConsumed);
 
-      return this.calculateComparison(analysisResults, recommendedIntake);
+      const comparisonData = this.calculateComparison(analysisResults, recommendedIntake);
+
+      // Store the comparison data for future use
+      await this.databaseService.saveComparisonResult(dayId, comparisonData);
+
+      return comparisonData;
     } catch (error) {
       console.error('Failed to get comparison for day:', error);
       throw new Error(`Failed to get comparison for day: ${error}`);

@@ -166,6 +166,9 @@ export const ComparisonScreen: React.FC<ComparisonScreenProps> = ({
           <Text style={styles.summarySubtext}>
             Compared to recommended daily intake for adults aged 18-29
           </Text>
+          <Text style={styles.optimalRangeText}>
+            💡 Optimal range is 80-120% of recommended daily intake
+          </Text>
         </View>
 
         {/* Filter Buttons */}
@@ -203,13 +206,7 @@ export const ComparisonScreen: React.FC<ComparisonScreenProps> = ({
             </View>
           )}
         </ScrollView>
-
         {/* Bottom Info */}
-        <View style={styles.bottomInfo}>
-          <Text style={styles.bottomInfoText}>
-            💡 Optimal range is 80-120% of recommended daily intake
-          </Text>
-        </View>
       </View>
     </SafeAreaView>
   );
@@ -269,6 +266,11 @@ const styles = StyleSheet.create({
     fontSize: FontSizes.small,
     color: Colors.textSecondary,
   },
+  optimalRangeText: {
+    fontSize: FontSizes.small,
+    color: Colors.textSecondary,
+    marginTop: Spacing.xs,
+  },
   filterContainer: {
     flexDirection: 'row',
     marginBottom: Spacing.sm,
@@ -303,17 +305,6 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingBottom: Spacing.lg,
-  },
-  bottomInfo: {
-    backgroundColor: Colors.white,
-    borderRadius: BorderRadius.medium,
-    padding: Spacing.sm,
-    marginVertical: Spacing.sm,
-  },
-  bottomInfoText: {
-    fontSize: FontSizes.small,
-    color: Colors.textSecondary,
-    textAlign: 'center',
   },
   loadingContainer: {
     flex: 1,
