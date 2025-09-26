@@ -17,6 +17,7 @@ import { Colors, Spacing, FontSizes, BorderRadius } from '../constants/theme';
 import { DatabaseService } from '../services/DatabaseService';
 import { ComparisonCard } from '../components/ComparisonCard';
 import { WeeklyReportService } from '../services/WeeklyReportService';
+import { AnalysisServiceManager } from '../services/AnalysisServiceManager';
 
 type RecordsStackParamList = {
   PastRecords: undefined;
@@ -50,6 +51,7 @@ export const PastRecordsScreen: React.FC = () => {
 
   const databaseService = DatabaseService.getInstance();
   const weeklyReportService = WeeklyReportService.getInstance();
+  const analysisServiceManager = AnalysisServiceManager.getInstance();
 
   useEffect(() => {
     initializeData();
@@ -63,12 +65,12 @@ export const PastRecordsScreen: React.FC = () => {
     }, [])
   );
 
-  // Update current week data when weeks change
+  // Update current week data when weeks, currentWeekIndex, or daysWithData change
   useEffect(() => {
     if (weeks.length > 0) {
       updateCurrentWeekData();
     }
-  }, [weeks, currentWeekIndex]);
+  }, [weeks, currentWeekIndex, daysWithData]);
 
   // Load data when tab changes
   useEffect(() => {
@@ -182,19 +184,10 @@ export const PastRecordsScreen: React.FC = () => {
     const dayNumber = parseInt(selectedTab.replace('day', ''));
     const dayData = currentWeekDays.find(day => day.dayNumber === dayNumber);
 
-    if (dayData && dayData.id > 0) { // Real day with data
-      setIsLoadingDayData(true);
-      try {
-        // Load additional day details if needed
-        setSelectedDayData(dayData);
-      } catch (err) {
-        console.error('Failed to load day data:', err);
-      } finally {
-        setIsLoadingDayData(false);
-      }
-    } else {
-      setSelectedDayData(dayData || null);
-    }
+    console.log('Loading day data for day', dayNumber, 'found:', !!dayData, 'dayData:', dayData);
+
+    // Always set the day data, even if it's a placeholder
+    setSelectedDayData(dayData || null);
   };
 
   const loadWeeklyComparisonData = async () => {
@@ -203,14 +196,119 @@ export const PastRecordsScreen: React.FC = () => {
     const currentWeek = weeks[Math.min(currentWeekIndex, weeks.length - 1)];
     setIsLoadingDayData(true);
     try {
-      const weeklyReportData = await weeklyReportService.generateWeeklyReport(currentWeek.id);
-      setWeeklyComparisonData(weeklyReportData.weeklyComparison || []);
+      // Check if weekly comparison data exists in database
+      const storedComparison = await databaseService.getWeeklyComparisonForWeek(currentWeek.id);
+      if (storedComparison) {
+        setWeeklyComparisonData(storedComparison);
+        return;
+      }
+
+      // If not in database, generate from nutrient aggregation
+      await generateWeeklyComparisonData(currentWeek.id);
     } catch (err) {
       console.error('Failed to load weekly comparison:', err);
       setWeeklyComparisonData([]);
     } finally {
       setIsLoadingDayData(false);
     }
+  };
+
+  const generateWeeklyComparisonData = async (weekId: number) => {
+    try {
+      setIsLoadingDayData(true);
+
+      // Get all nutrients consumed in this week
+      const weeklyNutrients = await getWeeklyNutrientsConsumed(weekId);
+
+      // Filter out nutrients with 0 or invalid amounts
+      const validNutrients = weeklyNutrients.filter(nutrient =>
+        nutrient.total_amount > 0 && nutrient.name && nutrient.name.trim()
+      );
+
+      if (validNutrients.length === 0) {
+        setWeeklyComparisonData([]);
+        return;
+      }
+
+      // Get weekly recommended intake from AI
+      const recommendedIntake = await analysisServiceManager.getWeeklyRecommendedIntake(validNutrients);
+
+      // Generate comparison data
+      const comparisonData = generateComparisonFromRecommendedIntake(validNutrients, recommendedIntake);
+
+      // Save to database
+      await databaseService.saveWeeklyComparisonResult(weekId, comparisonData);
+
+      setWeeklyComparisonData(comparisonData);
+    } catch (error) {
+      console.error('Failed to generate weekly comparison data:', error);
+      setWeeklyComparisonData([]);
+    } finally {
+      setIsLoadingDayData(false);
+    }
+  };
+
+  const getWeeklyNutrientsConsumed = async (weekId: number): Promise<Array<{name: string, total_amount: number, unit: string}>> => {
+    // Get all days in this week
+    const days = await databaseService.getDaysForWeek(weekId);
+
+    const nutrientTotals: {[key: string]: {total_amount: number, unit: string}} = {};
+
+    for (const day of days) {
+      // Get analysis results for this day
+      const analysisResults = await databaseService.getAnalysisForDay(day.id);
+
+      for (const result of analysisResults) {
+        for (const substance of result.chemicalSubstances) {
+          const key = substance.name.toLowerCase();
+          if (!nutrientTotals[key]) {
+            nutrientTotals[key] = { total_amount: 0, unit: 'grams' };
+          }
+          nutrientTotals[key].total_amount += substance.amount;
+        }
+      }
+    }
+
+    return Object.entries(nutrientTotals).map(([name, data]) => ({
+      name,
+      total_amount: data.total_amount,
+      unit: data.unit
+    }));
+  };
+
+  const generateComparisonFromRecommendedIntake = (
+    nutrientsConsumed: Array<{name: string, total_amount: number, unit: string}>,
+    recommendedIntake: any
+  ): ComparisonData[] => {
+    const comparisons: ComparisonData[] = [];
+
+    for (const nutrient of nutrientsConsumed) {
+      const recommended = recommendedIntake.recommended_intakes[nutrient.name];
+      if (recommended !== undefined) {
+        const consumed = nutrient.total_amount;
+        const percentage = (consumed / recommended) * 100;
+
+        let status: 'optimal' | 'under' | 'over';
+        if (percentage >= 90 && percentage <= 110) {
+          status = 'optimal';
+        } else if (percentage < 90) {
+          status = 'under';
+        } else {
+          status = 'over';
+        }
+
+        comparisons.push({
+          substance: nutrient.name,
+          consumed: consumed,
+          recommended: recommended,
+          percentage: percentage,
+          status: status,
+          unit: nutrient.unit
+        });
+      }
+    }
+
+    return comparisons;
   };
 
   const getCurrentWeek = (): Week | null => {

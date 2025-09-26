@@ -214,6 +214,7 @@ export class WeeklyReportService {
         recommended,
         percentage,
         status,
+        unit: 'grams',
       });
     });
 
@@ -226,6 +227,7 @@ export class WeeklyReportService {
           recommended: 0,
           percentage: 0,
           status: 'neutral' as ConsumptionStatus,
+          unit: 'grams',
         });
       }
     });

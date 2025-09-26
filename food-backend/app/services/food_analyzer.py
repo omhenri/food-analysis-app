@@ -1337,6 +1337,199 @@ class FoodAnalyzer:
             logger.error(f"Error getting recommended intake: {str(e)}")
             return self._get_fallback_recommended_intake()
 
+    def get_weekly_recommended_intake(self, nutrients_consumed: List[Dict[str, Any]], age_group: str = "18-29", gender: str = "general") -> Dict[str, Any]:
+        """
+        Get recommended weekly intake values based on nutrients consumed over a week using AI analysis
+        Returns: Structured response with recommended weekly intakes for 18-29 year olds
+        """
+        try:
+            if self.use_mock:
+                return self._get_mock_weekly_recommended_intake(nutrients_consumed, age_group, gender)
+
+            # Use AI to generate recommended weekly intake based on consumed nutrients
+            result = self._analyze_weekly_recommended_intake_with_ai(nutrients_consumed, age_group, gender)
+            print(f"Generated weekly recommended intake for {len(nutrients_consumed)} nutrients")
+            return result
+
+        except Exception as e:
+            logger.error(f"Error getting weekly recommended intake: {str(e)}")
+            return self._get_fallback_weekly_recommended_intake()
+
+    def _analyze_weekly_recommended_intake_with_ai(self, nutrients_consumed: List[Dict[str, Any]], age_group: str, gender: str) -> Dict[str, Any]:
+        """
+        Use AI to generate recommended weekly intake based on consumed nutrients and the prompt
+        """
+        prompt_template = self._get_embedded_weekly_recommend_intake_prompt()
+
+        # Prepare the input data
+        input_data = {
+            "nutrients_consumed": nutrients_consumed
+        }
+        print(input_data)
+        prompt = f"{prompt_template}\n\n{json.dumps(input_data)}"
+
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": "You are a professional nutritionist providing evidence-based nutritional recommendations. Always return valid JSON responses with the exact structure requested."},
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=2000,
+                temperature=0.1  # Low temperature for consistency
+            )
+
+            response_text = response.choices[0].message.content.strip()
+            print(response_text)
+            # Parse JSON response
+            try:
+                # Clean up response text to extract JSON
+                json_start = response_text.find('{')
+                json_end = response_text.rfind('}') + 1
+
+                if json_start == -1 or json_end == 0:
+                    logger.warning(f"No JSON object found in response: {response_text[:500]}...")
+                    raise json.JSONDecodeError("No JSON object found", response_text, 0)
+
+                json_content = response_text[json_start:json_end]
+                parsed_data = json.loads(json_content)
+
+                # Validate the response structure
+                if not self._validate_recommended_intake_response(parsed_data):
+                    logger.warning("AI response has invalid structure, using fallback")
+                    return self._get_fallback_weekly_recommended_intake()
+
+                return parsed_data
+
+            except json.JSONDecodeError as e:
+                logger.error(f"Failed to parse weekly recommended intake JSON response: {str(e)}")
+                logger.error(f"Response text: {response_text[:1000]}...")
+                return self._get_fallback_weekly_recommended_intake()
+
+        except Exception as e:
+            logger.error(f"Error calling AI for weekly recommended intake: {str(e)}")
+            return self._get_fallback_weekly_recommended_intake()
+
+    def _get_embedded_weekly_recommend_intake_prompt(self) -> str:
+        """Return embedded prompt for weekly intake recommendations"""
+        return """You are a professional nutritionist and dietitian specializing in evidence-based nutritional recommendations. Your task is to provide recommended weekly intake values for nutrients based on a comprehensive analysis of what nutrients were consumed over a 7-day period.
+
+INPUT:
+You will receive a JSON object containing a list of nutrients that were consumed/absorbed over a 7-day period, with each nutrient having:
+- name: the nutrient identifier (e.g., "protein", "vitamin_c", "sodium")
+- total_amount: the total amount consumed in grams (summed across 7 days)
+- unit: measurement unit (always "grams")
+
+OUTPUT REQUIREMENTS:
+Return ONLY a valid JSON object with recommended weekly intake values for adults aged 18-29. The output must follow this exact structure:
+
+{
+  "recommended_intakes": {
+    "nutrient_name_1": recommended_weekly_grams,
+    "nutrient_name_2": recommended_weekly_grams,
+    "nutrient_name_3": recommended_weekly_grams
+  },
+  "age_group": "18-29",
+  "gender": "general",
+  "disclaimer": "These are general recommendations for a 7-day period. Individual needs may vary based on health status, activity level, and specific conditions. Consult a healthcare professional for personalized advice."
+}
+
+RECOMMENDATION GUIDELINES:
+
+1. **Macronutrients:**
+   - Protein: 350g (7 days × 50g RDA - General average recommendation for adults aged 18-29)
+   - Fat: 455g (7 days × 65g DRI - General average recommendation based on 20-35% of total daily calories)
+   - Carbohydrate: 2100g (7 days × 300g DRI - General average recommendation based on 45-65% of total daily calories)
+   - Fiber: 175g (7 days × 25g EFSA - Minimum recommended daily intake for adults)
+   - Sugar: 350g (7 days × 50g WHO - Maximum recommended daily limit for added sugars)
+
+2. **Minerals:**
+   - Sodium: 16.1g (7 days × 2.3g WHO/FAO - Maximum recommended daily intake for adults)
+   - Potassium: 24.5g (7 days × 3.5g EFSA - Adequate intake recommendation for adults)
+   - Calcium: 7.0g (7 days × 1.0g RDA - Recommended daily allowance for adults aged 19-50)
+   - Iron: 0.126g (7 days × 0.018g RDA - General recommendation using women's RDA to cover higher needs)
+   - Magnesium: 2.8g (7 days × 0.4g RDA - General average recommendation for adults)
+
+3. **Vitamins:**
+   - Vitamin C: 0.63g (7 days × 0.09g RDA - Recommended daily allowance for adults)
+   - Vitamin D: 0.00014g (7 days × 0.00002g RDA - General recommendation for adults)
+
+4. **Other nutrients:**
+   - Include any other nutrients present in the input that have established recommendations
+
+IMPORTANT NOTES:
+- All values are multiplied by 7 to represent weekly intake recommendations
+- Use the exact sources and notes as specified above for each nutrient
+- Focus on 18-29 age group recommendations
+- All values must be in grams
+- Return ONLY valid JSON, no additional text or formatting"""
+
+    def _get_mock_weekly_recommended_intake(self, nutrients_consumed: List[Dict[str, Any]], age_group: str, gender: str) -> Dict[str, Any]:
+        """Return mock weekly recommended intake when API key is not available"""
+        # Base weekly recommended intakes (7 days × daily values)
+        base_recommendations = {
+            "protein": {"value": 350, "source": "RDA", "notes": "7 days × General average recommendation for adults aged 18-29"},
+            "fat": {"value": 455, "source": "DRI", "notes": "7 days × General average recommendation based on 20-35% of total daily calories"},
+            "carbohydrate": {"value": 2100, "source": "DRI", "notes": "7 days × General average recommendation based on 45-65% of total daily calories"},
+            "fiber": {"value": 175, "source": "EFSA", "notes": "7 days × Minimum recommended daily intake for adults"},
+            "sugar": {"value": 350, "source": "WHO", "notes": "7 days × Maximum recommended daily limit for added sugars"},
+            "sodium": {"value": 16.1, "source": "WHO/FAO", "notes": "7 days × Maximum recommended daily intake for adults"},
+            "potassium": {"value": 24.5, "source": "EFSA", "notes": "7 days × Adequate intake recommendation for adults"},
+            "calcium": {"value": 7.0, "source": "RDA", "notes": "7 days × Recommended daily allowance for adults aged 19-50"},
+            "iron": {"value": 0.126, "source": "RDA", "notes": "7 days × General recommendation using women's RDA to cover higher needs"},
+            "vitamin-c": {"value": 0.63, "source": "RDA", "notes": "7 days × Recommended daily allowance for adults"},
+            "vitamin-d": {"value": 0.00014, "source": "RDA", "notes": "7 days × General recommendation for adults"},
+            "magnesium": {"value": 2.8, "source": "RDA", "notes": "7 days × General average recommendation for adults"}
+        }
+
+        recommended_intakes = []
+        consumed_nutrient_names = {nutrient['name'] for nutrient in nutrients_consumed}
+
+        # Build dynamic recommended intakes object
+        recommended_intakes_obj = {}
+
+        # Include recommendations for nutrients that were consumed (only if they have established values > 0)
+        for nutrient_name in consumed_nutrient_names:
+            if nutrient_name in base_recommendations:
+                value = base_recommendations[nutrient_name]["value"]
+                if value > 0:
+                    recommended_intakes_obj[nutrient_name] = value
+
+        # If no specific nutrients were consumed, return all recommendations (excluding those with 0 values)
+        if not recommended_intakes_obj:
+            for nutrient_name, rec in base_recommendations.items():
+                if rec["value"] > 0:
+                    recommended_intakes_obj[nutrient_name] = rec["value"]
+
+        return {
+            "recommended_intakes": recommended_intakes_obj,
+            "age_group": age_group,
+            "gender": gender,
+            "disclaimer": "These are general recommendations for a 7-day period. Individual needs may vary based on health status, activity level, and specific conditions. Consult a healthcare professional for personalized advice."
+        }
+
+    def _get_fallback_weekly_recommended_intake(self) -> Dict[str, Any]:
+        """Return fallback weekly recommended intake when analysis fails"""
+        return {
+            "recommended_intakes": {
+                "protein": 350,
+                "fat": 455,
+                "carbohydrate": 2100,
+                "fiber": 175,
+                "sugar": 350,
+                "sodium": 16.1,
+                "potassium": 24.5,
+                "calcium": 7.0,
+                "iron": 0.126,
+                "vitamin-c": 0.63,
+                "vitamin-d": 0.00014,
+                "magnesium": 2.8
+            },
+            "age_group": "18-29",
+            "gender": "general",
+            "disclaimer": "These are general recommendations for a 7-day period. Individual needs may vary based on health status, activity level, and specific conditions. Consult a healthcare professional for personalized advice."
+        }
+
     def analyze_foods_comprehensive(self, foods: List[Dict[str, str]]) -> List[Dict[str, Any]]:
         """
         Analyze multiple foods using comprehensive nutritional analysis with detailed prompt

@@ -59,6 +59,11 @@ export class AnalysisDataService {
       try {
         const currentDay = await this.foodService.getCurrentDay();
         await this.databaseService.deleteComparisonForDay(currentDay.id);
+
+        // Also invalidate weekly comparison data for the current week
+        // so it gets regenerated next time the weekly report is viewed
+        const currentWeek = await this.databaseService.getCurrentWeek();
+        await this.databaseService.deleteWeeklyComparisonForWeek(currentWeek.id);
       } catch (error) {
         // Don't fail the entire operation if we can't delete comparison data
         console.warn('Failed to invalidate comparison data after analysis:', error);
@@ -253,6 +258,7 @@ export class AnalysisDataService {
         recommended,
         percentage,
         status,
+        unit: 'grams',
       });
     });
 
@@ -265,6 +271,7 @@ export class AnalysisDataService {
           recommended: 0,
           percentage: 0,
           status: 'neutral' as ConsumptionStatus,
+          unit: 'grams',
         });
       }
     });
@@ -380,6 +387,7 @@ export class AnalysisDataService {
         recommended,
         percentage,
         status,
+        unit: 'grams',
       });
     });
 

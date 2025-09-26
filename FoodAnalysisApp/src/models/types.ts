@@ -87,6 +87,7 @@ export interface ComparisonData {
   recommended: number;
   percentage: number;
   status: ConsumptionStatus;
+  unit: string;
 }
 
 // Recommended Intake Model

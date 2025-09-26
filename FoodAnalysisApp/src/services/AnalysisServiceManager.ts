@@ -1,6 +1,6 @@
 import { BackendAnalysisService } from './BackendAnalysisService';import { MockAIService } from './MockAIService';
 import { FoodItem, AnalysisResult, RecommendedIntake } from '../models/types';
-import { BackendNeutralizationRecommendations } from './BackendApiService';
+import { BackendNeutralizationRecommendations, BackendRecommendedIntake } from './BackendApiService';
 
 export interface AnalysisConfig {
   useMockService: boolean;
@@ -96,7 +96,23 @@ export class AnalysisServiceManager {
         return false;
       }
     }
-  }  public getConfig(): AnalysisConfig {
+  }
+
+  public async getWeeklyRecommendedIntake(nutrientsConsumed: Array<{name: string, total_amount: number, unit: string}>): Promise<BackendRecommendedIntake> {
+    if (this.config.useMockService) {
+      return this.mockService.getWeeklyRecommendedIntake(nutrientsConsumed);
+    } else {
+      const backendApiService = require('./BackendApiService').BackendApiService.getInstance();
+      const response = await backendApiService.getWeeklyRecommendedIntake(nutrientsConsumed);
+      if (response.success && response.data) {
+        return response.data;
+      } else {
+        throw new Error(response.error || 'Failed to get weekly recommended intake');
+      }
+    }
+  }
+
+  public getConfig(): AnalysisConfig {
     return { ...this.config };
   }
 }

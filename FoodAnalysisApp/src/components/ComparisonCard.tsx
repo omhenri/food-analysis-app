@@ -125,8 +125,8 @@ export const ComparisonCard: React.FC<ComparisonCardProps> = ({
           </View>
           <View style={styles.progressLabels}>
             <Text style={styles.progressLabel}>0%</Text>
+            <Text style={styles.progressLabel}>50%</Text>
             <Text style={styles.progressLabel}>100%</Text>
-            <Text style={styles.progressLabel}>200%</Text>
           </View>
         </View>
       )}

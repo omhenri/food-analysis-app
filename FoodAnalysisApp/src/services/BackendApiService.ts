@@ -54,7 +54,10 @@ export interface BackendAnalysisData {
 }
 
 export interface BackendRecommendedIntake {
-  [nutrientName: string]: number;
+  recommended_intakes: {[nutrientName: string]: number};
+  age_group: string;
+  gender: string;
+  disclaimer: string;
 }
 
 export interface BackendNeutralizationRecommendations {
@@ -246,15 +249,13 @@ export class BackendApiService {
       const data = await response.json();
       console.log('Recommended intake retrieved successfully:', data);
 
-      // Backend now returns recommended_intakes as an object directly
-      const recommendedIntake: BackendRecommendedIntake = {};
-      if (data.recommended_intakes && typeof data.recommended_intakes === 'object') {
-        // Convert nutrient names to the expected format (e.g., "vitamin_c" instead of "vitamin-c")
-        Object.entries(data.recommended_intakes).forEach(([nutrient, value]) => {
-          const nutrientKey = nutrient.replace(/-/g, '-');
-          recommendedIntake[nutrientKey] = value as number;
-        });
-      }
+      // Backend returns the full structure
+      const recommendedIntake: BackendRecommendedIntake = {
+        recommended_intakes: data.recommended_intakes || {},
+        age_group: data.age_group || '18-29',
+        gender: data.gender || 'general',
+        disclaimer: data.disclaimer || 'These are general recommendations. Individual needs may vary based on health status, activity level, and specific conditions. Consult a healthcare professional for personalized advice.'
+      };
 
       return {
         success: true,
@@ -408,6 +409,66 @@ export class BackendApiService {
 
       return result;
     });
+  }
+
+  // Get weekly recommended intake from backend
+  public async getWeeklyRecommendedIntake(nutrientsConsumed: Array<{name: string, total_amount: number, unit: string}>): Promise<BackendResponse<BackendRecommendedIntake>> {
+    try {
+      console.log('Getting weekly recommended intake from backend');
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+
+      const requestData = {
+        nutrients_consumed: nutrientsConsumed,
+        age_group: '18-29',
+        gender: 'general'
+      };
+
+      const response = await fetch(`${this.baseUrl}/api/recommended-intake-for-week`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestData),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new BackendApiError(
+          response.status,
+          errorData.code || 'HTTP_ERROR',
+          errorData.error || `HTTP ${response.status}: ${response.statusText}`
+        );
+      }
+
+      const data = await response.json();
+      console.log('Weekly recommended intake retrieved successfully');
+
+      return {
+        success: true,
+        data,
+      };
+
+    } catch (error) {
+      console.error('Failed to get weekly recommended intake:', error);
+
+      if (error instanceof BackendApiError) {
+        return {
+          success: false,
+          error: error.message,
+          code: error.errorCode,
+        };
+      }
+
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error occurred',
+      };
+    }
   }
 
 }

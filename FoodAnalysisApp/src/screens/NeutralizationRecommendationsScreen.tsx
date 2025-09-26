@@ -32,7 +32,6 @@ export const NeutralizationRecommendationsScreen: React.FC = () => {
     return (
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionIcon}>{icon}</Text>
           <Text style={styles.sectionTitle}>{title}</Text>
         </View>
         {items.map((item, index) => (
@@ -93,9 +92,6 @@ export const NeutralizationRecommendationsScreen: React.FC = () => {
             {item.reasoning && (
               <Text style={styles.reasoningText}>{item.reasoning}</Text>
             )}
-            {item.timing && (
-              <Text style={styles.timingText}>⏰ {item.timing}</Text>
-            )}
           </View>
         ))}
       </View>
@@ -124,6 +120,11 @@ export const NeutralizationRecommendationsScreen: React.FC = () => {
           <Text style={styles.overdosedText}>
             Over-dosed substances: {recommendations.overdosed_substances.join(', ')}
           </Text>
+          {/* Disclaimer */}
+          <Text style={styles.disclaimerTitle}>⚠️ Important Disclaimer</Text>
+          <Text style={styles.disclaimerText}>
+            {recommendations.disclaimer}
+          </Text>
         </View>
 
         {/* Recommendations */}
@@ -132,11 +133,11 @@ export const NeutralizationRecommendationsScreen: React.FC = () => {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          {renderRecommendationSection('🥗 Food Recommendations', recommendations.recommendations.food_recommendations || [], '🥗')}
-          {renderRecommendationSection('🏃 Activity Recommendations', recommendations.recommendations.activity_recommendations || [], '🏃')}
-          {renderRecommendationSection('🥤 Drink Recommendations', recommendations.recommendations.drink_recommendations || [], '🥤')}
-          {renderRecommendationSection('💊 Supplement Recommendations', recommendations.recommendations.supplement_recommendations || [], '💊')}
-          {renderRecommendationSection('💡 Lifestyle Advice', recommendations.recommendations.lifestyle_recommendations || [], '💡')}
+          {renderRecommendationSection('🥗 Food Recommendations', recommendations.recommendations.food_recommendations || [], '')}
+          {renderRecommendationSection('🥤 Drink Recommendations', recommendations.recommendations.drink_recommendations || [], '')}
+          {renderRecommendationSection('🏃 Activity Recommendations', recommendations.recommendations.activity_recommendations || [], '')}
+          {renderRecommendationSection('💡 Lifestyle Advice', recommendations.recommendations.lifestyle_recommendations || [], '')}
+
 
           {((!recommendations.recommendations.food_recommendations || recommendations.recommendations.food_recommendations.length === 0) &&
             (!recommendations.recommendations.activity_recommendations || recommendations.recommendations.activity_recommendations.length === 0) &&
@@ -150,14 +151,6 @@ export const NeutralizationRecommendationsScreen: React.FC = () => {
             </View>
           )}
         </ScrollView>
-
-        {/* Disclaimer */}
-        <View style={styles.disclaimer}>
-          <Text style={styles.disclaimerTitle}>⚠️ Important Disclaimer</Text>
-          <Text style={styles.disclaimerText}>
-            {recommendations.disclaimer}
-          </Text>
-        </View>
       </View>
     </SafeAreaView>
   );
@@ -217,15 +210,15 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.xs,
   },
   summaryText: {
-    fontSize: FontSizes.medium,
-    color: Colors.textSecondary,
+    fontSize: FontSizes.small,
+    color: Colors.textPrimary,
     marginBottom: Spacing.sm,
-    lineHeight: 20,
+    lineHeight: 18,
   },
   overdosedText: {
     fontSize: FontSizes.small,
-    color: Colors.primary,
-    fontWeight: '600',
+    color: Colors.textPrimary,
+    lineHeight: 18,
   },
   scrollView: {
     flex: 1,
@@ -237,8 +230,8 @@ const styles = StyleSheet.create({
   section: {
     backgroundColor: Colors.white,
     borderRadius: BorderRadius.medium,
-    padding: Spacing.md,
-    marginBottom: Spacing.sm,
+    padding: Spacing.xs,
+    marginBottom: Spacing.xs,
     shadowColor: Colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -246,15 +239,16 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   sectionHeader: {
+    paddingTop: Spacing.sm,
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: Spacing.sm,
   },
   sectionIcon: {
     fontSize: FontSizes.large,
     marginRight: Spacing.sm,
   },
   sectionTitle: {
+    paddingLeft: Spacing.sm,
     fontSize: FontSizes.large,
     fontWeight: '600',
     color: Colors.textPrimary,
@@ -263,12 +257,11 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.cardBackground,
     borderRadius: BorderRadius.small,
     padding: Spacing.sm,
-    marginBottom: Spacing.xs,
   },
   substanceName: {
     fontSize: FontSizes.medium,
     fontWeight: '600',
-    color: Colors.primary,
+    color: Colors.textPrimary,
     marginBottom: Spacing.xs,
   },
   recommendationDetails: {
@@ -347,6 +340,7 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   disclaimerTitle: {
+    paddingTop: Spacing.sm,
     fontSize: FontSizes.medium,
     fontWeight: '600',
     color: Colors.error,

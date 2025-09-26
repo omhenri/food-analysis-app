@@ -245,7 +245,7 @@ const styles = StyleSheet.create({
   },
   servingText: {
     fontSize: FontSizes.small,
-    color: Colors.primary,
+    color: Colors.textPrimary,
     fontWeight: '500',
   },
   ingredientsSection: {

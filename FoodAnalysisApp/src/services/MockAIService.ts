@@ -1,5 +1,5 @@
 import { FoodItem, AnalysisResult, ChemicalSubstance, RecommendedIntake } from '../models/types';
-import { BackendNeutralizationRecommendations } from './BackendApiService';
+import { BackendNeutralizationRecommendations, BackendRecommendedIntake } from './BackendApiService';
 
 // Import mock data
 import singleFoodAnalysis from '../mockdata/responses/single-food-analysis.json';
@@ -324,6 +324,48 @@ export class MockAIService {
       case '1/8': return 0.125;
       default: return 1.0;
     }
+  }
+
+  public async getWeeklyRecommendedIntake(nutrientsConsumed: Array<{name: string, total_amount: number, unit: string}>): Promise<BackendRecommendedIntake> {
+    await this.delay(1000); // Simulate API delay
+
+    // Base weekly recommended intakes (7 days × daily values)
+    const baseWeeklyRecommendations = {
+      "protein": 350,
+      "fat": 455,
+      "carbohydrate": 2100,
+      "fiber": 175,
+      "sugar": 350,
+      "sodium": 16.1,
+      "potassium": 24.5,
+      "calcium": 7.0,
+      "iron": 0.126,
+      "vitamin-c": 0.63,
+      "vitamin-d": 0.00014,
+      "magnesium": 2.8
+    };
+
+    const recommendedIntakes: {[key: string]: number} = {};
+
+    // Include recommendations for nutrients that were consumed
+    for (const nutrient of nutrientsConsumed) {
+      const nutrientName = nutrient.name.toLowerCase();
+      if (nutrientName in baseWeeklyRecommendations) {
+        recommendedIntakes[nutrient.name] = (baseWeeklyRecommendations as any)[nutrientName];
+      }
+    }
+
+    // If no specific nutrients were consumed, return all recommendations
+    if (Object.keys(recommendedIntakes).length === 0) {
+      Object.assign(recommendedIntakes, baseWeeklyRecommendations);
+    }
+
+    return {
+      recommended_intakes: recommendedIntakes,
+      age_group: '18-29',
+      gender: 'general',
+      disclaimer: 'These are general recommendations for a 7-day period. Individual needs may vary based on health status, activity level, and specific conditions. Consult a healthcare professional for personalized advice.'
+    };
   }
 
   // Simulate network delay

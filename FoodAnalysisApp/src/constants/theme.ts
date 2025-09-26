@@ -1,7 +1,7 @@
 export const Colors = {
   // Primary Colors
-  primary: '#75F5DB',
-  background: '#6FF3E0', // Updated to match user requirement
+  primary: '#77C5B5',
+  background: '#77C5B5', // Updated to match user requirement
   textPrimary: '#2D3748',
   textSecondary: '#4A5568',
   white: '#FFFFFF',
@@ -36,6 +36,7 @@ export const Spacing = {
   sm: 16,
   md: 24,
   lg: 32,
+  xl: 48,
 };
 
 export const BorderRadius = {

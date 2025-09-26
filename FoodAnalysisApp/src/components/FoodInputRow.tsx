@@ -71,14 +71,16 @@ export const FoodInputRow: React.FC<FoodInputRowProps> = ({
           <Text style={styles.portionText}>{food.portion}</Text>
           <View style={styles.portionIndicator} />
         </TouchableOpacity>
+        {/* Remove Button */}
+        {showRemoveButton && onRemove && (
+          <TouchableOpacity style={styles.removeButton} onPress={onRemove}>
+            <Text style={styles.removeButtonText}>×</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
-      {/* Remove Button */}
-      {showRemoveButton && onRemove && (
-        <TouchableOpacity style={styles.removeButton} onPress={onRemove}>
-          <Text style={styles.removeButtonText}>×</Text>
-        </TouchableOpacity>
-      )}
+      
+      
 
       {/* Meal Type Modal */}
       <Modal
@@ -126,7 +128,7 @@ export const FoodInputRow: React.FC<FoodInputRowProps> = ({
                 style={styles.portionOption}
                 onPress={() => handlePortionSelect(portion)}
               >
-                <Text style={styles.portionOptionText}>{portion}</Text>
+                <Text style={styles.portionOptionText}>{portion} portion</Text>
                 <View
                   style={[
                     styles.portionRadio,
@@ -189,19 +191,16 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primary,
   },
   removeButton: {
-    position: 'absolute',
-    right: -10,
-    top: -10,
-    width: 24,
-    height: 24,
     borderRadius: 12,
-    backgroundColor: Colors.error,
+    width: 14,
     justifyContent: 'center',
     alignItems: 'center',
+    paddingBottom: 2,
+    marginLeft: Spacing.md,
   },
   removeButtonText: {
-    color: Colors.white,
-    fontSize: 16,
+    color: Colors.textPrimary,
+    fontSize: 20,
     fontWeight: 'bold',
   },
   modalOverlay: {
@@ -236,7 +235,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.white,
     borderRadius: BorderRadius.small,
     padding: Spacing.sm,
-    minWidth: 100,
+    minWidth: 150,
     shadowColor: Colors.shadow,
     shadowOffset: { width: 2, height: 2 },
     shadowOpacity: 0.2,
@@ -247,7 +246,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: Spacing.xs,
+    paddingVertical: Spacing.sm,
     paddingHorizontal: Spacing.xs,
   },
   portionOptionText: {

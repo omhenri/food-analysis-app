@@ -265,6 +265,157 @@ def get_recommended_intake():
         }), 500
 
 
+@api_bp.route('/recommended-intake-for-week', methods=['POST'])
+def get_weekly_recommended_intake():
+    """
+    Get recommended weekly intake based on nutrients consumed over a week
+    Expects: {"nutrients_consumed": [{"name": "protein", "total_amount": 75.2, "unit": "grams"}, ...], "age_group": "18-29", "gender": "general"}
+    Returns: {"recommended_intakes": {...}, "age_group": "18-29", "gender": "general", "disclaimer": "..."}
+    """
+    try:
+        # Get client IP for rate limiting
+        client_ip = request.remote_addr or request.environ.get('HTTP_X_FORWARDED_FOR', 'unknown')
+
+        # Check rate limit
+        if not rate_limiter.is_allowed(client_ip):
+            logger.warning(f"Rate limit exceeded for IP: {client_ip}")
+            return jsonify({
+                'error': 'Rate limit exceeded. Please try again later.',
+                'code': 'RATE_LIMIT_EXCEEDED'
+            }), 429
+
+        # Get and validate input
+        data = request.get_json()
+
+        if not data:
+            return jsonify({
+                'error': 'Missing request data',
+                'code': 'MISSING_DATA'
+            }), 400
+
+        # Validate required fields
+        if 'nutrients_consumed' not in data:
+            return jsonify({
+                'error': 'Missing nutrients_consumed field',
+                'code': 'MISSING_NUTRIENTS_CONSUMED'
+            }), 400
+
+        nutrients_consumed = data['nutrients_consumed']
+        if not isinstance(nutrients_consumed, list):
+            return jsonify({
+                'error': 'nutrients_consumed must be an array',
+                'code': 'INVALID_NUTRIENTS_FORMAT'
+            }), 400
+
+        if len(nutrients_consumed) == 0:
+            return jsonify({
+                'error': 'nutrients_consumed array cannot be empty',
+                'code': 'EMPTY_NUTRIENTS_ARRAY'
+            }), 400
+
+        # Validate each nutrient item and filter out invalid ones
+        validated_nutrients = []
+        for i, nutrient in enumerate(nutrients_consumed):
+            # Skip nutrients with invalid or zero amounts early
+            try:
+                amount = float(nutrient.get('total_amount', 0))
+                if amount <= 0:
+                    continue
+            except (ValueError, TypeError):
+                continue
+
+            if not isinstance(nutrient, dict):
+                return jsonify({
+                    'error': f'Nutrient item at index {i} must be an object',
+                    'code': 'INVALID_NUTRIENT_ITEM'
+                }), 400
+
+            required_fields = ['name', 'total_amount']
+            for field in required_fields:
+                if field not in nutrient:
+                    return jsonify({
+                        'error': f'Missing {field} in nutrient item at index {i}',
+                        'code': 'MISSING_NUTRIENT_FIELD'
+                    }), 400
+
+            # Validate nutrient name (should be a string)
+            if not isinstance(nutrient['name'], str) or not nutrient['name'].strip():
+                return jsonify({
+                    'error': f'Invalid nutrient name at index {i}',
+                    'code': 'INVALID_NUTRIENT_NAME'
+                }), 400
+
+            # Validate total_amount (should be a number)
+            try:
+                total_amount = float(nutrient['total_amount'])
+                if total_amount < 0:
+                    return jsonify({
+                        'error': f'Nutrient amount must be non-negative at index {i}',
+                        'code': 'INVALID_NUTRIENT_AMOUNT'
+                    }), 400
+            except (ValueError, TypeError):
+                return jsonify({
+                    'error': f'Invalid nutrient amount at index {i}',
+                    'code': 'INVALID_NUTRIENT_AMOUNT'
+                }), 400
+
+            # Validate unit (optional, defaults to "grams")
+            unit = nutrient.get('unit', 'grams')
+            if not isinstance(unit, str):
+                unit = 'grams'
+
+            validated_nutrients.append({
+                'name': nutrient['name'].strip(),
+                'total_amount': total_amount,
+                'unit': unit
+            })
+
+        # Get optional parameters
+        age_group = data.get('age_group', '18-29')
+        gender = data.get('gender', 'general')
+
+        # Validate age_group and gender
+        valid_age_groups = ['0-18', '19-40', '18-29', '>40']
+        if age_group not in valid_age_groups:
+            return jsonify({
+                'error': f'Invalid age_group. Must be one of: {", ".join(valid_age_groups)}',
+                'code': 'INVALID_AGE_GROUP'
+            }), 400
+
+        valid_genders = ['male', 'female', 'general']
+        if gender not in valid_genders:
+            return jsonify({
+                'error': f'Invalid gender. Must be one of: {", ".join(valid_genders)}',
+                'code': 'INVALID_GENDER'
+            }), 400
+
+        # Check if we have any valid nutrients after filtering
+        if len(validated_nutrients) == 0:
+            return jsonify({
+                'error': 'No valid nutrients found in the request. All nutrients were filtered out due to invalid or zero amounts.',
+                'code': 'NO_VALID_NUTRIENTS'
+            }), 400
+
+        # Log the request
+        logger.info(f"Getting weekly recommended intake for {len(validated_nutrients)} nutrients from IP: {client_ip}")
+
+        # Get weekly recommended intake using AI analysis
+        result = food_analyzer.get_weekly_recommended_intake(validated_nutrients, age_group, gender)
+
+        # Update rate limiter
+        rate_limiter.record_request(client_ip)
+
+        # Return successful response
+        return jsonify(result), 200
+
+    except Exception as e:
+        logger.error(f"Error getting weekly recommended intake: {str(e)}", exc_info=True)
+        return jsonify({
+            'error': 'Internal server error. Please try again later.',
+            'code': 'INTERNAL_ERROR'
+        }), 500
+
+
 @api_bp.route('/neutralization-recommendations', methods=['POST'])
 def get_neutralization_recommendations():
     """

@@ -62,7 +62,7 @@ export class BackendAnalysisService {
 
       if (backendResponse.success && backendResponse.data) {
         console.log('Recommended intake retrieved successfully');
-        return backendResponse.data as RecommendedIntake;
+        return backendResponse.data.recommended_intakes;
       } else {
         throw new Error(backendResponse.error || 'Failed to get recommended intake');
       }

@@ -398,6 +398,87 @@ export class DatabaseService {
     }
   }
 
+  // Save weekly comparison result for a week (replace existing)
+  public async saveWeeklyComparisonResult(weekId: number, comparisonData: ComparisonData[]): Promise<void> {
+    if (!this.database) {
+      throw new Error('Database not initialized');
+    }
+
+    try {
+      const comparisonJson = JSON.stringify(comparisonData);
+
+      // Replace existing weekly comparison data for this week
+      await this.database.executeSql(
+        `INSERT OR REPLACE INTO weekly_comparison_results (week_id, comparison_data, updated_at)
+         VALUES (?, ?, datetime('now'))`,
+        [weekId, comparisonJson]
+      );
+    } catch (error) {
+      console.error('Failed to save weekly comparison result:', error);
+      throw error;
+    }
+  }
+
+  // Get weekly comparison result for a week
+  public async getWeeklyComparisonForWeek(weekId: number): Promise<ComparisonData[] | null> {
+    if (!this.database) {
+      throw new Error('Database not initialized');
+    }
+
+    try {
+      const [results] = await this.database.executeSql(
+        'SELECT comparison_data FROM weekly_comparison_results WHERE week_id = ?',
+        [weekId]
+      );
+
+      if (results.rows.length > 0) {
+        const row = results.rows.item(0);
+        return JSON.parse(row.comparison_data);
+      }
+
+      return null; // No weekly comparison data found
+    } catch (error) {
+      console.error('Failed to get weekly comparison for week:', error);
+      throw error;
+    }
+  }
+
+  // Check if weekly comparison data exists for a week
+  public async hasWeeklyComparisonForWeek(weekId: number): Promise<boolean> {
+    if (!this.database) {
+      throw new Error('Database not initialized');
+    }
+
+    try {
+      const [results] = await this.database.executeSql(
+        'SELECT COUNT(*) as count FROM weekly_comparison_results WHERE week_id = ?',
+        [weekId]
+      );
+
+      return results.rows.item(0).count > 0;
+    } catch (error) {
+      console.error('Failed to check weekly comparison for week:', error);
+      return false;
+    }
+  }
+
+  // Delete weekly comparison result for a week
+  public async deleteWeeklyComparisonForWeek(weekId: number): Promise<void> {
+    if (!this.database) {
+      throw new Error('Database not initialized');
+    }
+
+    try {
+      await this.database.executeSql(
+        'DELETE FROM weekly_comparison_results WHERE week_id = ?',
+        [weekId]
+      );
+    } catch (error) {
+      console.error('Failed to delete weekly comparison for week:', error);
+      throw error;
+    }
+  }
+
   // Get weekly data
   public async getWeeklyData(weekId: number): Promise<WeeklyData> {
     if (!this.database) {
