@@ -1,7 +1,7 @@
 export const Colors = {
   // Primary Colors
   primary: '#75F5DB',
-  background: '#75F5DB',
+  background: '#6FF3E0', // Updated to match user requirement
   textPrimary: '#2D3748',
   textSecondary: '#4A5568',
   white: '#FFFFFF',
@@ -24,6 +24,11 @@ export const Colors = {
   inactive: '#595959',
   placeholder: '#DEDBDB',
   shadow: 'rgba(0, 0, 0, 0.05)',
+
+  // Progress Bar Colors (as per user requirements)
+  maleRec: '#4299E1', // Blue for male recommendation
+  femaleRec: '#ED64A6', // Pink for female recommendation
+  userActual: '#6FF3E0', // Teal for user actuals
 };
 
 export const Spacing = {

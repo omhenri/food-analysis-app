@@ -113,14 +113,14 @@ export const ComparisonCard: React.FC<ComparisonCardProps> = ({
       {comparisonData.recommended > 0 && (
         <View style={styles.progressContainer}>
           <View style={styles.progressBar}>
-            <View 
+            <View
               style={[
-                styles.progressFill, 
-                { 
-                  width: getProgressBarWidth(),
-                  backgroundColor: getStatusColor(comparisonData.status),
+                styles.progressFill,
+                {
+                  width: getProgressBarWidth() as any, // Type assertion for width string
+                  backgroundColor: Colors.userActual, // Teal for user actuals
                 }
-              ]} 
+              ]}
             />
           </View>
           <View style={styles.progressLabels}>

@@ -12,9 +12,11 @@ import {
 } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { Day, Week, FoodEntry } from '../models/types';
+import { Day, Week, FoodEntry, AnalysisResult, ComparisonData } from '../models/types';
 import { Colors, Spacing, FontSizes, BorderRadius } from '../constants/theme';
 import { DatabaseService } from '../services/DatabaseService';
+import { ComparisonCard } from '../components/ComparisonCard';
+import { WeeklyReportService } from '../services/WeeklyReportService';
 
 type RecordsStackParamList = {
   PastRecords: undefined;
@@ -29,6 +31,8 @@ interface DayWithData extends Day {
   hasAnalysis: boolean;
 }
 
+type TabType = 'previous-week' | 'day1' | 'day2' | 'day3' | 'day4' | 'day5' | 'day6' | 'day7' | 'week-report' | 'next-week';
+
 export const PastRecordsScreen: React.FC = () => {
   const navigation = useNavigation<PastRecordsScreenNavigationProp>();
   const [weeks, setWeeks] = useState<Week[]>([]);
@@ -36,7 +40,16 @@ export const PastRecordsScreen: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
+  // New state for tab navigation
+  const [currentWeekIndex, setCurrentWeekIndex] = useState<number>(0);
+  const [selectedTab, setSelectedTab] = useState<TabType>('day1');
+  const [currentWeekDays, setCurrentWeekDays] = useState<DayWithData[]>([]);
+  const [selectedDayData, setSelectedDayData] = useState<DayWithData | null>(null);
+  const [weeklyComparisonData, setWeeklyComparisonData] = useState<ComparisonData[]>([]);
+  const [isLoadingDayData, setIsLoadingDayData] = useState<boolean>(false);
+
   const databaseService = DatabaseService.getInstance();
+  const weeklyReportService = WeeklyReportService.getInstance();
 
   useEffect(() => {
     initializeData();
@@ -49,6 +62,22 @@ export const PastRecordsScreen: React.FC = () => {
       initializeData();
     }, [])
   );
+
+  // Update current week data when weeks change
+  useEffect(() => {
+    if (weeks.length > 0) {
+      updateCurrentWeekData();
+    }
+  }, [weeks, currentWeekIndex]);
+
+  // Load data when tab changes
+  useEffect(() => {
+    if (selectedTab !== 'week-report') {
+      loadSelectedDayData();
+    } else {
+      loadWeeklyComparisonData();
+    }
+  }, [selectedTab, currentWeekDays]);
 
   const initializeData = async () => {
     try {
@@ -101,6 +130,98 @@ export const PastRecordsScreen: React.FC = () => {
     navigation.navigate('WeeklyReport', { weekId });
   };
 
+  const updateCurrentWeekData = () => {
+    if (weeks.length === 0) return;
+
+    const currentWeek = weeks[Math.min(currentWeekIndex, weeks.length - 1)];
+    const weekDays = daysWithData.filter(day => day.weekId === currentWeek.id);
+
+    // Create DayWithData for all 7 days of the week, even if they don't exist
+    const allWeekDays: DayWithData[] = [];
+    for (let dayNum = 1; dayNum <= 7; dayNum++) {
+      const existingDay = weekDays.find(day => day.dayNumber === dayNum);
+      if (existingDay) {
+        allWeekDays.push(existingDay);
+      } else {
+        // Create placeholder day
+        const dayDate = new Date(currentWeek.startDate);
+        dayDate.setDate(dayDate.getDate() + dayNum - 1);
+
+        allWeekDays.push({
+          id: -dayNum, // Negative ID for placeholder
+          weekId: currentWeek.id,
+          dayNumber: dayNum,
+          date: dayDate.toISOString().split('T')[0],
+          createdAt: currentWeek.createdAt,
+          foodCount: 0,
+          hasAnalysis: false,
+        });
+      }
+    }
+
+    setCurrentWeekDays(allWeekDays);
+  };
+
+  const handleTabPress = (tab: TabType) => {
+    if (tab === 'previous-week' && currentWeekIndex > 0) {
+      setCurrentWeekIndex(currentWeekIndex - 1);
+      setSelectedTab('day1');
+    } else if (tab === 'next-week' && currentWeekIndex < weeks.length - 1) {
+      setCurrentWeekIndex(currentWeekIndex + 1);
+      setSelectedTab('day1');
+    } else if (tab.startsWith('day')) {
+      setSelectedTab(tab);
+    } else if (tab === 'week-report') {
+      setSelectedTab(tab);
+    }
+  };
+
+  const loadSelectedDayData = async () => {
+    if (selectedTab === 'week-report' || !selectedTab.startsWith('day')) return;
+
+    const dayNumber = parseInt(selectedTab.replace('day', ''));
+    const dayData = currentWeekDays.find(day => day.dayNumber === dayNumber);
+
+    if (dayData && dayData.id > 0) { // Real day with data
+      setIsLoadingDayData(true);
+      try {
+        // Load additional day details if needed
+        setSelectedDayData(dayData);
+      } catch (err) {
+        console.error('Failed to load day data:', err);
+      } finally {
+        setIsLoadingDayData(false);
+      }
+    } else {
+      setSelectedDayData(dayData || null);
+    }
+  };
+
+  const loadWeeklyComparisonData = async () => {
+    if (weeks.length === 0) return;
+
+    const currentWeek = weeks[Math.min(currentWeekIndex, weeks.length - 1)];
+    setIsLoadingDayData(true);
+    try {
+      const weeklyReportData = await weeklyReportService.generateWeeklyReport(currentWeek.id);
+      setWeeklyComparisonData(weeklyReportData.weeklyComparison || []);
+    } catch (err) {
+      console.error('Failed to load weekly comparison:', err);
+      setWeeklyComparisonData([]);
+    } finally {
+      setIsLoadingDayData(false);
+    }
+  };
+
+  const getCurrentWeek = (): Week | null => {
+    if (weeks.length === 0) return null;
+    return weeks[Math.min(currentWeekIndex, weeks.length - 1)];
+  };
+
+  const isLatestWeek = (): boolean => {
+    return currentWeekIndex === 0; // Assuming weeks are sorted with most recent first
+  };
+
   const formatDate = (dateString: string): string => {
     const date = new Date(dateString);
     const today = new Date().toISOString().split('T')[0];
@@ -139,6 +260,137 @@ export const PastRecordsScreen: React.FC = () => {
     }
   };
 
+  const renderTabBar = () => {
+    const currentWeek = getCurrentWeek();
+    if (!currentWeek) return null;
+
+    const tabs: { key: TabType; label: string; enabled: boolean }[] = [
+      { key: 'previous-week', label: 'Previous Week', enabled: currentWeekIndex > 0 },
+      { key: 'day1', label: 'Day 1', enabled: true },
+      { key: 'day2', label: 'Day 2', enabled: true },
+      { key: 'day3', label: 'Day 3', enabled: true },
+      { key: 'day4', label: 'Day 4', enabled: true },
+      { key: 'day5', label: 'Day 5', enabled: true },
+      { key: 'day6', label: 'Day 6', enabled: true },
+      { key: 'day7', label: 'Day 7', enabled: true },
+      { key: 'week-report', label: 'Week Report', enabled: true },
+      { key: 'next-week', label: 'Next Week', enabled: currentWeekIndex < weeks.length - 1 },
+    ];
+
+    return (
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.tabBar}
+        contentContainerStyle={styles.tabBarContent}
+      >
+        {tabs.map(tab => (
+          <TouchableOpacity
+            key={tab.key}
+            style={[
+              styles.tab,
+              selectedTab === tab.key && styles.tabActive,
+              !tab.enabled && styles.tabDisabled,
+            ]}
+            onPress={() => tab.enabled && handleTabPress(tab.key)}
+            disabled={!tab.enabled}
+          >
+            <Text
+              style={[
+                styles.tabText,
+                selectedTab === tab.key && styles.tabTextActive,
+                !tab.enabled && styles.tabTextDisabled,
+              ]}
+            >
+              {tab.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+    );
+  };
+
+  const renderDayDetail = () => {
+    if (!selectedDayData) {
+      return (
+        <View style={styles.dayDetailContainer}>
+          <Text style={styles.noDataText}>No data for this day</Text>
+        </View>
+      );
+    }
+
+    return (
+      <View style={styles.dayDetailContainer}>
+        <View style={styles.dayHeader}>
+          <Text style={styles.dayTitle}>Day {selectedDayData.dayNumber}</Text>
+          <Text style={styles.dayDate}>{formatDate(selectedDayData.date)}</Text>
+        </View>
+
+        <View style={styles.dayStats}>
+          <Text style={styles.dayStatus}>
+            {getDayStatusText(selectedDayData)}
+          </Text>
+          <Text style={styles.dayFoodCount}>
+            {selectedDayData.foodCount} food{selectedDayData.foodCount !== 1 ? 's' : ''} logged
+          </Text>
+        </View>
+
+        {selectedDayData.id > 0 && (
+          <TouchableOpacity
+            style={styles.viewDetailsButton}
+            onPress={() => handleDayPress(selectedDayData!)}
+          >
+            <Text style={styles.viewDetailsText}>View Details</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    );
+  };
+
+  const renderWeeklyReport = () => {
+    const currentWeek = getCurrentWeek();
+    if (!currentWeek) return null;
+
+    return (
+      <View style={styles.weeklyReportContainer}>
+        <View style={styles.weeklyReportHeader}>
+          <Text style={styles.weeklyReportTitle}>Week {currentWeek.weekNumber} Report</Text>
+          <Text style={styles.weeklyReportDate}>
+            {new Date(currentWeek.startDate).toLocaleDateString('en-US', {
+              month: 'short',
+              day: 'numeric'
+            })} - {currentWeek.endDate ?
+              new Date(currentWeek.endDate).toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric'
+              }) : 'Present'}
+          </Text>
+        </View>
+
+        <Text style={styles.comparisonTitle}>Nutritional Analysis Summary</Text>
+
+        {weeklyComparisonData.length > 0 ? (
+          <ScrollView
+            style={styles.comparisonScrollView}
+            contentContainerStyle={styles.comparisonContent}
+            showsVerticalScrollIndicator={false}
+          >
+            {weeklyComparisonData.map((comparison, index) => (
+              <ComparisonCard
+                key={`${comparison.substance}-${index}`}
+                comparisonData={comparison}
+              />
+            ))}
+          </ScrollView>
+        ) : (
+          <View style={styles.noComparisonData}>
+            <Text style={styles.noComparisonText}>No comparison data available</Text>
+          </View>
+        )}
+      </View>
+    );
+  };
+
   const renderDayItem = ({ item: day }: { item: DayWithData }) => (
     <TouchableOpacity
       style={styles.dayItem}
@@ -154,11 +406,11 @@ export const PastRecordsScreen: React.FC = () => {
             {formatDate(day.date)}
           </Text>
         </View>
-        
+
         <Text style={[styles.dayItemStatus, { color: getDayStatusColor(day) }]}>
           {getDayStatusText(day)}
         </Text>
-        
+
         <View style={styles.dayItemFooter}>
           <Text style={styles.dayItemWeek}>
             Week {Math.ceil(day.dayNumber / 7)}
@@ -240,38 +492,23 @@ export const PastRecordsScreen: React.FC = () => {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.title}>Past Records</Text>
-          <TouchableOpacity 
-            style={styles.refreshButton}
-            onPress={() => {
-              console.log('Manual refresh triggered');
-              initializeData();
-            }}
-          >
-            <Text style={styles.refreshButtonText}>🔄</Text>
-          </TouchableOpacity>
-        </View>
 
-        {/* Content */}
-        {daysWithData.length > 0 ? (
-          <FlatList
-            data={daysWithData}
-            renderItem={renderDayItem}
-            keyExtractor={(item) => item.id.toString()}
-            contentContainerStyle={styles.listContent}
-            showsVerticalScrollIndicator={false}
-            ListHeaderComponent={renderWeeklyReportButton}
-          />
-        ) : (
-          <View style={styles.noDataContainer}>
-            <Text style={styles.noDataText}>No days recorded yet</Text>
-            <Text style={styles.noDataSubtext}>
-              Start tracking your food to see your history here
-            </Text>
-          </View>
-        )}
+        {/* Tab Bar */}
+        {weeks.length > 0 && renderTabBar()}
+
+        {/* Main Data Section */}
+        <View style={styles.mainDataSection}>
+          {isLoadingDayData ? (
+            <View style={styles.loadingDayData}>
+              <ActivityIndicator size="large" color="#6FF3E0" />
+              <Text style={styles.loadingDayDataText}>Loading data...</Text>
+            </View>
+          ) : selectedTab === 'week-report' ? (
+            renderWeeklyReport()
+          ) : (
+            renderDayDetail()
+          )}
+        </View>
       </View>
     </SafeAreaView>
   );
@@ -280,7 +517,7 @@ export const PastRecordsScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: Colors.white,
   },
   content: {
     flex: 1,
@@ -309,6 +546,136 @@ const styles = StyleSheet.create({
   refreshButtonText: {
     fontSize: 20,
     color: Colors.white,
+  },
+  tabBar: {
+    backgroundColor: Colors.white,
+    maxHeight: 70,
+  },
+  tabBarContent: {
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs,
+    alignItems: 'center',
+  },
+  tab: {
+    backgroundColor: 'transparent',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    marginHorizontal: 2,
+    borderRadius: BorderRadius.medium,
+    minWidth: 80,
+    alignItems: 'center',
+  },
+  tabActive: {
+  },
+  tabDisabled: {
+    opacity: 0.5,
+  },
+  tabText: {
+    fontSize: FontSizes.medium,
+    color: Colors.background, // Teal for inactive
+    fontWeight: '500',
+  },
+  tabTextActive: {
+    color: Colors.black, // Black for active
+    fontWeight: 'bold',
+  },
+  tabTextDisabled: {
+    color: Colors.textSecondary,
+  },
+  mainDataSection: {
+    flex: 1,
+    backgroundColor: Colors.white,
+    borderRadius: BorderRadius.medium,
+    shadowColor: Colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  loadingDayData: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingDayDataText: {
+    fontSize: FontSizes.medium,
+    color: Colors.textSecondary,
+    marginTop: Spacing.sm,
+  },
+  dayDetailContainer: {
+    flex: 1,
+    padding: Spacing.lg,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  dayHeader: {
+    alignItems: 'center',
+    marginBottom: Spacing.lg,
+  },
+  dayTitle: {
+    fontSize: FontSizes.xlarge,
+    fontWeight: 'bold',
+    color: Colors.black,
+    marginBottom: Spacing.xs,
+  },
+  dayDate: {
+    fontSize: FontSizes.medium,
+    color: Colors.textSecondary,
+  },
+  dayStats: {
+    alignItems: 'center',
+    marginBottom: Spacing.lg,
+  },
+  dayStatus: {
+    fontSize: FontSizes.medium,
+    color: Colors.black,
+    marginBottom: Spacing.sm,
+  },
+  dayFoodCount: {
+    fontSize: FontSizes.small,
+    color: Colors.textSecondary,
+  },
+  viewDetailsButton: {
+    backgroundColor: Colors.background,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.medium,
+    marginTop: Spacing.md,
+  },
+  viewDetailsText: {
+    fontSize: FontSizes.medium,
+    color: Colors.white,
+    fontWeight: '600',
+  },
+  weeklyReportContainer: {
+    flex: 1,
+    padding: Spacing.lg,
+  },
+  weeklyReportHeader: {
+    alignItems: 'center',
+    marginBottom: Spacing.lg,
+  },
+  comparisonTitle: {
+    fontSize: FontSizes.large,
+    fontWeight: '600',
+    color: Colors.black,
+    marginBottom: Spacing.md,
+    textAlign: 'center',
+  },
+  comparisonScrollView: {
+    flex: 1,
+  },
+  comparisonContent: {
+    paddingBottom: Spacing.lg,
+  },
+  noComparisonData: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  noComparisonText: {
+    fontSize: FontSizes.medium,
+    color: Colors.textSecondary,
   },
   listContent: {
     paddingHorizontal: Spacing.md,

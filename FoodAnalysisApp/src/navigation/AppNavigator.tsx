@@ -134,6 +134,9 @@ const RecordsStackNavigator: React.FC = () => {
       <RecordsStack.Screen
         name="PastRecords"
         component={PastRecordsScreen}
+        options={{
+          cardStyle: { backgroundColor: Colors.white }
+        }}
       />
       <RecordsStack.Screen
         name="DayDetail"
