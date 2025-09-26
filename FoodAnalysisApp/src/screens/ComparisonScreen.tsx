@@ -199,7 +199,9 @@ export const ComparisonScreen: React.FC<ComparisonScreenProps> = ({
           <TouchableOpacity style={styles.backButtonHeader} onPress={onBackPress}>
             <Text style={styles.backButtonHeaderText}>← Back</Text>
           </TouchableOpacity>
-          <Text style={styles.title}>Daily Comparison</Text>
+          <View style={styles.titleContainer}>
+            <Text style={styles.title}>Daily Comparison</Text>
+          </View>
         </View>
 
         {/* Summary */}
@@ -287,23 +289,31 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
   },
   header: {
-    flexDirection: 'row',
+    position: 'relative',
     alignItems: 'center',
     paddingVertical: Spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
   backButtonHeader: {
-    marginRight: Spacing.sm,
+    position: 'absolute',
+    left: 0,
+    top: Spacing.md,
+    zIndex: 1,
   },
   backButtonHeaderText: {
     fontSize: FontSizes.medium,
-    color: Colors.primary,
+    color: Colors.black,
+  },
+  titleContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   title: {
     fontSize: FontSizes.xlarge,
     fontWeight: '600',
     color: Colors.textPrimary,
+    textAlign: 'center',
   },
   summaryContainer: {
     backgroundColor: Colors.white,

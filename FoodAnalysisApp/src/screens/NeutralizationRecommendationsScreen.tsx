@@ -110,7 +110,9 @@ export const NeutralizationRecommendationsScreen: React.FC = () => {
           <TouchableOpacity style={styles.backButton} onPress={handleBackPress}>
             <Text style={styles.backButtonText}>← Back</Text>
           </TouchableOpacity>
-          <Text style={styles.title}>Neutralization Guide</Text>
+          <View style={styles.titleContainer}>
+            <Text style={styles.title}>Neutralization Guide</Text>
+          </View>
         </View>
 
         {/* Summary */}
@@ -164,37 +166,43 @@ export const NeutralizationRecommendationsScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.white,
   },
   content: {
     flex: 1,
   },
   header: {
-    flexDirection: 'row',
+    position: 'relative',
     alignItems: 'center',
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    borderBottomColor: Colors.border
   },
   backButton: {
-    marginRight: Spacing.sm,
+    position: 'absolute',
+    left: Spacing.md,
+    top: Spacing.md,
+    zIndex: 1,
   },
   backButtonText: {
     fontSize: FontSizes.medium,
-    color: Colors.primary,
+    color: Colors.black,
     fontWeight: '500',
+  },
+  titleContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   title: {
     fontSize: FontSizes.xlarge,
     fontWeight: '600',
     color: Colors.textPrimary,
-    flex: 1,
+    textAlign: 'center',
   },
   summary: {
     backgroundColor: Colors.white,
     padding: Spacing.md,
-    margin: Spacing.sm,
+    margin: Spacing.md,
     borderRadius: BorderRadius.medium,
     shadowColor: Colors.shadow,
     shadowOffset: { width: 0, height: 2 },
