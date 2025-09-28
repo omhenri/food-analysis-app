@@ -68,9 +68,56 @@ export class DatabaseService {
       for (const createTableSQL of CREATE_TABLES) {
         await this.database.executeSql(createTableSQL);
       }
+      
+      // Handle migration for existing databases
+      await this.migrateDatabase();
     } catch (error) {
       console.error('Failed to create tables:', error);
       throw error;
+    }
+  }
+
+  // Handle database migrations
+  private async migrateDatabase(): Promise<void> {
+    if (!this.database) {
+      return;
+    }
+
+    try {
+      // Check if new columns exist in analysis_results table
+      const [result] = await this.database.executeSql(
+        "PRAGMA table_info(analysis_results)"
+      );
+
+      const columnNames = [];
+      for (let i = 0; i < result.rows.length; i++) {
+        columnNames.push(result.rows.item(i).name);
+      }
+
+      // Add missing columns
+      if (!columnNames.includes('serving_info')) {
+        await this.database.executeSql(
+          'ALTER TABLE analysis_results ADD COLUMN serving_info TEXT'
+        );
+        console.log('Added serving_info column to analysis_results table');
+      }
+
+      if (!columnNames.includes('portion_info')) {
+        await this.database.executeSql(
+          'ALTER TABLE analysis_results ADD COLUMN portion_info TEXT'
+        );
+        console.log('Added portion_info column to analysis_results table');
+      }
+
+      if (!columnNames.includes('detailed_nutrients')) {
+        await this.database.executeSql(
+          'ALTER TABLE analysis_results ADD COLUMN detailed_nutrients TEXT'
+        );
+        console.log('Added detailed_nutrients column to analysis_results table');
+      }
+    } catch (error) {
+      console.error('Database migration failed:', error);
+      // Don't throw error - continue with existing schema
     }
   }
 
@@ -268,12 +315,20 @@ export class DatabaseService {
     }
 
     try {
+      // Extract additional fields from result
+      const servingInfo = (result as any).servingInfo || null;
+      const portionInfo = (result as any).portionInfo || null;
+      const detailedNutrients = (result as any).detailedNutrients || null;
+
       await this.database.executeSql(
-        'INSERT INTO analysis_results (food_entry_id, ingredients, chemical_substances) VALUES (?, ?, ?)',
+        'INSERT INTO analysis_results (food_entry_id, ingredients, chemical_substances, serving_info, portion_info, detailed_nutrients) VALUES (?, ?, ?, ?, ?, ?)',
         [
           result.foodEntryId,
           JSON.stringify(result.ingredients),
           JSON.stringify(result.chemicalSubstances),
+          servingInfo ? JSON.stringify(servingInfo) : null,
+          portionInfo ? JSON.stringify(portionInfo) : null,
+          detailedNutrients ? JSON.stringify(detailedNutrients) : null,
         ]
       );
     } catch (error) {
@@ -300,14 +355,28 @@ export class DatabaseService {
       const analysisResults: AnalysisResult[] = [];
       for (let i = 0; i < results.rows.length; i++) {
         const row = results.rows.item(i);
-        analysisResults.push({
+        const baseResult: AnalysisResult = {
           id: row.id,
           foodEntryId: row.food_entry_id,
           foodId: row.food_name, // Using food_name as foodId for now
           ingredients: JSON.parse(row.ingredients),
           chemicalSubstances: JSON.parse(row.chemical_substances),
           analyzedAt: row.analyzed_at,
-        });
+        };
+
+        // Add additional fields if they exist
+        const extendedResult = baseResult as any;
+        if (row.serving_info) {
+          extendedResult.servingInfo = JSON.parse(row.serving_info);
+        }
+        if (row.portion_info) {
+          extendedResult.portionInfo = JSON.parse(row.portion_info);
+        }
+        if (row.detailed_nutrients) {
+          extendedResult.detailedNutrients = JSON.parse(row.detailed_nutrients);
+        }
+
+        analysisResults.push(extendedResult);
       }
 
       return analysisResults;

@@ -295,8 +295,6 @@ export const DayDetailScreen: React.FC = () => {
       contentContainerStyle={styles.scrollContent}
       showsVerticalScrollIndicator={false}
     >
-      {/* Food Entries Section */}
-      {renderFoodEntriesSection()}
 
       {/* Analysis Results Section */}
       {hasAnalysisData() ? (

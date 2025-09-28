@@ -45,6 +45,9 @@ export const CREATE_ANALYSIS_RESULTS_TABLE = `
     food_entry_id INTEGER NOT NULL,
     ingredients TEXT NOT NULL,
     chemical_substances TEXT NOT NULL,
+    serving_info TEXT,
+    portion_info TEXT,
+    detailed_nutrients TEXT,
     analyzed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (food_entry_id) REFERENCES food_entries (id)
   );

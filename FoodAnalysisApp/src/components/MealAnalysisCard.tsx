@@ -5,6 +5,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   Animated,
+  ScrollView,
 } from 'react-native';
 import { AnalysisResult, MealType } from '../models/types';
 import { Colors, Spacing, BorderRadius, FontSizes } from '../constants/theme';
@@ -102,7 +103,7 @@ export const MealAnalysisCard: React.FC<MealAnalysisCardProps> = ({
 
   const contentHeight = animation.interpolate({
     inputRange: [0, 1],
-    outputRange: [0, 1000], // Adjust max height as needed
+    outputRange: [0, 300], // Set a reasonable max height for scrollable content
   });
 
   return (
@@ -130,7 +131,12 @@ export const MealAnalysisCard: React.FC<MealAnalysisCardProps> = ({
           }
         ]}
       >
-        <View style={styles.contentInner}>
+        <ScrollView 
+          style={styles.scrollView}
+          contentContainerStyle={styles.contentInner}
+          showsVerticalScrollIndicator={true}
+          nestedScrollEnabled={true}
+        >
           {groupSubstancesByFood().map((foodData, index) => (
             <View key={index} style={styles.foodSection}>
               <Text style={styles.foodName}>{foodData.foodName}</Text>
@@ -209,7 +215,7 @@ export const MealAnalysisCard: React.FC<MealAnalysisCardProps> = ({
               </View>
             </View>
           ))}
-        </View>
+        </ScrollView>
       </Animated.View>
     </View>
   );
@@ -252,8 +258,12 @@ const styles = StyleSheet.create({
   content: {
     overflow: 'hidden',
   },
+  scrollView: {
+    
+  },
   contentInner: {
     paddingHorizontal: Spacing.sm,
+    paddingBottom: Spacing.xs, // Add some bottom padding for better scrolling experience
   },
   foodSection: {
   },
@@ -262,6 +272,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: Colors.textPrimary,
     marginBottom: Spacing.xs,
+    paddingTop: Spacing.sm,
   },
   servingSection: {
     marginBottom: Spacing.xs,
