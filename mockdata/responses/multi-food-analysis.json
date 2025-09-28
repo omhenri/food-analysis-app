@@ -1,65 +1,631 @@
 [
   {
-    "food_name": "Apple",
-    "meal_type": "breakfast",
+    "food_name": "French Fries",
+    "meal_type": "lunch",
     "serving": {
-      "description": "One medium apple",
-      "grams": 182.0
+      "description": "Medium serving of deep-fried potato strips",
+      "grams": 117
     },
     "ingredients": [
-      {"name": "Apple flesh", "portion_percent": 95.0},
-      {"name": "Apple skin", "portion_percent": 4.5},
-      {"name": "Apple core/seeds", "portion_percent": 0.5}
+      {
+        "name": "Potato",
+        "portion_percent": 85
+      },
+      {
+        "name": "Vegetable oil",
+        "portion_percent": 14
+      },
+      {
+        "name": "Salt",
+        "portion_percent": 1
+      }
     ],
     "nutrients_g": {
-      "carbohydrate": {
+      "energy_kcal": {
+        "full_name": "Energy",
+        "class": "macronutrient",
+        "impact": "neutral",
+        "total_g": 365,
+        "by_ingredient": [
+          {
+            "ingredient": "Potato",
+            "grams": 130,
+            "percent_of_chemical": 35.6
+          },
+          {
+            "ingredient": "Vegetable oil",
+            "grams": 235,
+            "percent_of_chemical": 64.4
+          }
+        ]
+      },
+      "carbohydrate_g": {
         "full_name": "Carbohydrate",
         "class": "macronutrient",
         "impact": "neutral",
-        "total_g": 25.13,
+        "total_g": 48,
         "by_ingredient": [
-          {"ingredient": "Apple flesh", "grams": 25.13, "percent_of_chemical": 100.0}
+          {
+            "ingredient": "Potato",
+            "grams": 48,
+            "percent_of_chemical": 100
+          }
         ]
       },
-      "fiber": {
+      "protein_g": {
+        "full_name": "Protein",
+        "class": "macronutrient",
+        "impact": "positive",
+        "total_g": 3.9,
+        "by_ingredient": [
+          {
+            "ingredient": "Potato",
+            "grams": 3.9,
+            "percent_of_chemical": 100
+          }
+        ]
+      },
+      "total_fat_g": {
+        "full_name": "Total Fat",
+        "class": "macronutrient",
+        "impact": "neutral",
+        "total_g": 17,
+        "by_ingredient": [
+          {
+            "ingredient": "Vegetable oil",
+            "grams": 17,
+            "percent_of_chemical": 100
+          }
+        ]
+      },
+      "fiber_g": {
         "full_name": "Dietary Fiber",
         "class": "macronutrient",
         "impact": "positive",
-        "total_g": 4.37,
+        "total_g": 3.8,
         "by_ingredient": [
-          {"ingredient": "Apple flesh", "grams": 4.37, "percent_of_chemical": 100.0}
+          {
+            "ingredient": "Potato",
+            "grams": 3.8,
+            "percent_of_chemical": 100
+          }
+        ]
+      },
+      "sodium_g": {
+        "full_name": "Sodium",
+        "class": "mineral",
+        "impact": "negative",
+        "total_g": 0.39,
+        "by_ingredient": [
+          {
+            "ingredient": "Salt",
+            "grams": 0.39,
+            "percent_of_chemical": 100
+          }
+        ]
+      },
+      "potassium_g": {
+        "full_name": "Potassium",
+        "class": "mineral",
+        "impact": "positive",
+        "total_g": 0.78,
+        "by_ingredient": [
+          {
+            "ingredient": "Potato",
+            "grams": 0.78,
+            "percent_of_chemical": 100
+          }
+        ]
+      },
+      "vitamin_c_g": {
+        "full_name": "Vitamin C",
+        "class": "vitamin",
+        "impact": "positive",
+        "total_g": 0.0094,
+        "by_ingredient": [
+          {
+            "ingredient": "Potato",
+            "grams": 0.0094,
+            "percent_of_chemical": 100
+          }
         ]
       }
     }
   },
   {
-    "food_name": "Banana",
-    "meal_type": "breakfast",
+    "food_name": "Tiramisu",
+    "meal_type": "snack",
     "serving": {
-      "description": "One medium banana",
-      "grams": 118.0
+      "description": "One slice of traditional Italian dessert",
+      "grams": 85
     },
     "ingredients": [
-      {"name": "Banana flesh", "portion_percent": 98.0},
-      {"name": "Banana peel", "portion_percent": 2.0}
+      {
+        "name": "Ladyfinger cookies",
+        "portion_percent": 35
+      },
+      {
+        "name": "Mascarpone cheese",
+        "portion_percent": 40
+      },
+      {
+        "name": "Egg yolk",
+        "portion_percent": 15
+      },
+      {
+        "name": "Coffee",
+        "portion_percent": 8
+      },
+      {
+        "name": "Cocoa powder",
+        "portion_percent": 2
+      }
     ],
     "nutrients_g": {
-      "carbohydrate": {
+      "energy_kcal": {
+        "full_name": "Energy",
+        "class": "macronutrient",
+        "impact": "neutral",
+        "total_g": 280,
+        "by_ingredient": [
+          {
+            "ingredient": "Ladyfinger cookies",
+            "grams": 98,
+            "percent_of_chemical": 35
+          },
+          {
+            "ingredient": "Mascarpone cheese",
+            "grams": 112,
+            "percent_of_chemical": 40
+          },
+          {
+            "ingredient": "Egg yolk",
+            "grams": 42,
+            "percent_of_chemical": 15
+          },
+          {
+            "ingredient": "Coffee",
+            "grams": 22.4,
+            "percent_of_chemical": 8
+          },
+          {
+            "ingredient": "Cocoa powder",
+            "grams": 5.6,
+            "percent_of_chemical": 2
+          }
+        ]
+      },
+      "carbohydrate_g": {
         "full_name": "Carbohydrate",
         "class": "macronutrient",
         "impact": "neutral",
-        "total_g": 27.04,
+        "total_g": 25,
         "by_ingredient": [
-          {"ingredient": "Banana flesh", "grams": 27.04, "percent_of_chemical": 100.0}
+          {
+            "ingredient": "Ladyfinger cookies",
+            "grams": 17.5,
+            "percent_of_chemical": 70
+          },
+          {
+            "ingredient": "Coffee",
+            "grams": 2,
+            "percent_of_chemical": 8
+          },
+          {
+            "ingredient": "Cocoa powder",
+            "grams": 1,
+            "percent_of_chemical": 4
+          },
+          {
+            "ingredient": "Mascarpone cheese",
+            "grams": 4,
+            "percent_of_chemical": 16
+          },
+          {
+            "ingredient": "Egg yolk",
+            "grams": 0.5,
+            "percent_of_chemical": 2
+          }
         ]
       },
-      "potassium": {
+      "protein_g": {
+        "full_name": "Protein",
+        "class": "macronutrient",
+        "impact": "positive",
+        "total_g": 6,
+        "by_ingredient": [
+          {
+            "ingredient": "Mascarpone cheese",
+            "grams": 2.4,
+            "percent_of_chemical": 40
+          },
+          {
+            "ingredient": "Egg yolk",
+            "grams": 1.8,
+            "percent_of_chemical": 30
+          },
+          {
+            "ingredient": "Ladyfinger cookies",
+            "grams": 1.8,
+            "percent_of_chemical": 30
+          }
+        ]
+      },
+      "total_fat_g": {
+        "full_name": "Total Fat",
+        "class": "macronutrient",
+        "impact": "neutral",
+        "total_g": 17,
+        "by_ingredient": [
+          {
+            "ingredient": "Mascarpone cheese",
+            "grams": 8.5,
+            "percent_of_chemical": 50
+          },
+          {
+            "ingredient": "Egg yolk",
+            "grams": 5.1,
+            "percent_of_chemical": 30
+          },
+          {
+            "ingredient": "Ladyfinger cookies",
+            "grams": 3.4,
+            "percent_of_chemical": 20
+          }
+        ]
+      },
+      "calcium_g": {
+        "full_name": "Calcium",
+        "class": "mineral",
+        "impact": "positive",
+        "total_g": 0.12,
+        "by_ingredient": [
+          {
+            "ingredient": "Mascarpone cheese",
+            "grams": 0.096,
+            "percent_of_chemical": 80
+          },
+          {
+            "ingredient": "Egg yolk",
+            "grams": 0.024,
+            "percent_of_chemical": 20
+          }
+        ]
+      }
+    }
+  },
+  {
+    "food_name": "Skimmed Milk",
+    "meal_type": "snack",
+    "serving": {
+      "description": "One cup of skim milk",
+      "grams": 244
+    },
+    "ingredients": [
+      {
+        "name": "Skim milk",
+        "portion_percent": 100
+      }
+    ],
+    "nutrients_g": {
+      "energy_kcal": {
+        "full_name": "Energy",
+        "class": "macronutrient",
+        "impact": "neutral",
+        "total_g": 83,
+        "by_ingredient": [
+          {
+            "ingredient": "Skim milk",
+            "grams": 83,
+            "percent_of_chemical": 100
+          }
+        ]
+      },
+      "carbohydrate_g": {
+        "full_name": "Carbohydrate",
+        "class": "macronutrient",
+        "impact": "neutral",
+        "total_g": 12,
+        "by_ingredient": [
+          {
+            "ingredient": "Skim milk",
+            "grams": 12,
+            "percent_of_chemical": 100
+          }
+        ]
+      },
+      "protein_g": {
+        "full_name": "Protein",
+        "class": "macronutrient",
+        "impact": "positive",
+        "total_g": 8.3,
+        "by_ingredient": [
+          {
+            "ingredient": "Skim milk",
+            "grams": 8.3,
+            "percent_of_chemical": 100
+          }
+        ]
+      },
+      "total_fat_g": {
+        "full_name": "Total Fat",
+        "class": "macronutrient",
+        "impact": "neutral",
+        "total_g": 0.2,
+        "by_ingredient": [
+          {
+            "ingredient": "Skim milk",
+            "grams": 0.2,
+            "percent_of_chemical": 100
+          }
+        ]
+      },
+      "calcium_g": {
+        "full_name": "Calcium",
+        "class": "mineral",
+        "impact": "positive",
+        "total_g": 0.3,
+        "by_ingredient": [
+          {
+            "ingredient": "Skim milk",
+            "grams": 0.3,
+            "percent_of_chemical": 100
+          }
+        ]
+      },
+      "vitamin_d_g": {
+        "full_name": "Vitamin D",
+        "class": "vitamin",
+        "impact": "positive",
+        "total_g": 0.0000025,
+        "by_ingredient": [
+          {
+            "ingredient": "Skim milk",
+            "grams": 0.0000025,
+            "percent_of_chemical": 100
+          }
+        ]
+      },
+      "potassium_g": {
         "full_name": "Potassium",
         "class": "mineral",
         "impact": "positive",
-        "total_g": 0.4224,
+        "total_g": 0.38,
         "by_ingredient": [
-          {"ingredient": "Banana flesh", "grams": 0.4224, "percent_of_chemical": 100.0}
+          {
+            "ingredient": "Skim milk",
+            "grams": 0.38,
+            "percent_of_chemical": 100
+          }
+        ]
+      }
+    }
+  },
+  {
+    "food_name": "Chicken Breast",
+    "meal_type": "breakfast",
+    "serving": {
+      "description": "One grilled chicken breast",
+      "grams": 120
+    },
+    "ingredients": [
+      {
+        "name": "Chicken breast",
+        "portion_percent": 98
+      },
+      {
+        "name": "Olive oil",
+        "portion_percent": 2
+      }
+    ],
+    "nutrients_g": {
+      "energy_kcal": {
+        "full_name": "Energy",
+        "class": "macronutrient",
+        "impact": "neutral",
+        "total_g": 165,
+        "by_ingredient": [
+          {
+            "ingredient": "Chicken breast",
+            "grams": 161.7,
+            "percent_of_chemical": 98
+          },
+          {
+            "ingredient": "Olive oil",
+            "grams": 3.3,
+            "percent_of_chemical": 2
+          }
+        ]
+      },
+      "protein_g": {
+        "full_name": "Protein",
+        "class": "macronutrient",
+        "impact": "positive",
+        "total_g": 31,
+        "by_ingredient": [
+          {
+            "ingredient": "Chicken breast",
+            "grams": 31,
+            "percent_of_chemical": 100
+          }
+        ]
+      },
+      "total_fat_g": {
+        "full_name": "Total Fat",
+        "class": "macronutrient",
+        "impact": "neutral",
+        "total_g": 3.6,
+        "by_ingredient": [
+          {
+            "ingredient": "Chicken breast",
+            "grams": 3.2,
+            "percent_of_chemical": 88.9
+          },
+          {
+            "ingredient": "Olive oil",
+            "grams": 0.4,
+            "percent_of_chemical": 11.1
+          }
+        ]
+      },
+      "iron_g": {
+        "full_name": "Iron",
+        "class": "mineral",
+        "impact": "positive",
+        "total_g": 0.0011,
+        "by_ingredient": [
+          {
+            "ingredient": "Chicken breast",
+            "grams": 0.0011,
+            "percent_of_chemical": 100
+          }
+        ]
+      },
+      "zinc_g": {
+        "full_name": "Zinc",
+        "class": "mineral",
+        "impact": "positive",
+        "total_g": 0.001,
+        "by_ingredient": [
+          {
+            "ingredient": "Chicken breast",
+            "grams": 0.001,
+            "percent_of_chemical": 100
+          }
+        ]
+      },
+      "vitamin_b6_g": {
+        "full_name": "Vitamin B6",
+        "class": "vitamin",
+        "impact": "positive",
+        "total_g": 0.0008,
+        "by_ingredient": [
+          {
+            "ingredient": "Chicken breast",
+            "grams": 0.0008,
+            "percent_of_chemical": 100
+          }
+        ]
+      }
+    }
+  },
+  {
+    "food_name": "Salmon",
+    "meal_type": "dinner",
+    "serving": {
+      "description": "One grilled salmon fillet",
+      "grams": 150
+    },
+    "ingredients": [
+      {
+        "name": "Salmon fillet",
+        "portion_percent": 98
+      },
+      {
+        "name": "Olive oil",
+        "portion_percent": 2
+      }
+    ],
+    "nutrients_g": {
+      "energy_kcal": {
+        "full_name": "Energy",
+        "class": "macronutrient",
+        "impact": "neutral",
+        "total_g": 280,
+        "by_ingredient": [
+          {
+            "ingredient": "Salmon fillet",
+            "grams": 274.4,
+            "percent_of_chemical": 98
+          },
+          {
+            "ingredient": "Olive oil",
+            "grams": 5.6,
+            "percent_of_chemical": 2
+          }
+        ]
+      },
+      "protein_g": {
+        "full_name": "Protein",
+        "class": "macronutrient",
+        "impact": "positive",
+        "total_g": 30,
+        "by_ingredient": [
+          {
+            "ingredient": "Salmon fillet",
+            "grams": 30,
+            "percent_of_chemical": 100
+          }
+        ]
+      },
+      "total_fat_g": {
+        "full_name": "Total Fat",
+        "class": "macronutrient",
+        "impact": "neutral",
+        "total_g": 17,
+        "by_ingredient": [
+          {
+            "ingredient": "Salmon fillet",
+            "grams": 16.7,
+            "percent_of_chemical": 98.2
+          },
+          {
+            "ingredient": "Olive oil",
+            "grams": 0.3,
+            "percent_of_chemical": 1.8
+          }
+        ]
+      },
+      "omega_3_fatty_acid_g": {
+        "full_name": "Omega-3 Fatty Acids",
+        "class": "fatty_acid",
+        "impact": "positive",
+        "total_g": 2.5,
+        "by_ingredient": [
+          {
+            "ingredient": "Salmon fillet",
+            "grams": 2.5,
+            "percent_of_chemical": 100
+          }
+        ]
+      },
+      "vitamin_d_g": {
+        "full_name": "Vitamin D",
+        "class": "vitamin",
+        "impact": "positive",
+        "total_g": 0.000015,
+        "by_ingredient": [
+          {
+            "ingredient": "Salmon fillet",
+            "grams": 0.000015,
+            "percent_of_chemical": 100
+          }
+        ]
+      },
+      "selenium_g": {
+        "full_name": "Selenium",
+        "class": "mineral",
+        "impact": "positive",
+        "total_g": 0.000045,
+        "by_ingredient": [
+          {
+            "ingredient": "Salmon fillet",
+            "grams": 0.000045,
+            "percent_of_chemical": 100
+          }
+        ]
+      },
+      "potassium_g": {
+        "full_name": "Potassium",
+        "class": "mineral",
+        "impact": "positive",
+        "total_g": 0.53,
+        "by_ingredient": [
+          {
+            "ingredient": "Salmon fillet",
+            "grams": 0.53,
+            "percent_of_chemical": 100
+          }
         ]
       }
     }

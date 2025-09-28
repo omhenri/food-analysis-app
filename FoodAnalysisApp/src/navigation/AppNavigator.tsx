@@ -34,6 +34,7 @@ export type RecordsStackParamList = {
   PastRecords: undefined;
   DayDetail: { day: any };
   WeeklyReport: { weekId: number };
+  NeutralizationRecommendations: { recommendations: any };
 };
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
@@ -151,6 +152,10 @@ const RecordsStackNavigator: React.FC = () => {
       <RecordsStack.Screen
         name="WeeklyReport"
         component={WeeklyReportScreen}
+      />
+      <RecordsStack.Screen
+        name="NeutralizationRecommendations"
+        component={NeutralizationRecommendationsScreen}
       />
     </RecordsStack.Navigator>
   );

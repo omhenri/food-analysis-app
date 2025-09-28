@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import { AnalysisResult, MealType } from '../models/types';
 import { Colors, Spacing, BorderRadius, FontSizes } from '../constants/theme';
+import { PortionIcon } from './PortionIcon';
 import { MealIcon } from './MealIcon';
 
 interface MealAnalysisCardProps {
@@ -138,9 +139,20 @@ export const MealAnalysisCard: React.FC<MealAnalysisCardProps> = ({
               {foodData.servingInfo && (
                 <View style={styles.servingSection}>
                   <Text style={styles.sectionTitle}>Serving:</Text>
-                  <Text style={styles.servingText}>
-                    {foodData.servingInfo.description} ({foodData.servingInfo.grams}g)
-                  </Text>
+                  <View style={styles.servingRow}>
+                    <Text style={styles.servingText}>
+                      {foodData.servingInfo.description} ({foodData.servingInfo.grams}g)
+                    </Text>
+                    {(analysisResults[index] as any)?.portionInfo && (
+                      <View style={styles.portionIndicator}>
+                        <PortionIcon 
+                          portion={(analysisResults[index] as any).portionInfo.portion}
+                          selected={true}
+                          size={16}
+                        />
+                      </View>
+                    )}
+                  </View>
                 </View>
               )}
 
@@ -254,10 +266,19 @@ const styles = StyleSheet.create({
   servingSection: {
     marginBottom: Spacing.xs,
   },
+  servingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
   servingText: {
     fontSize: FontSizes.small,
     color: Colors.textPrimary,
     fontWeight: '500',
+    flex: 1,
+  },
+  portionIndicator: {
+    marginLeft: Spacing.xs,
   },
   ingredientsSection: {
     marginBottom: Spacing.xs,

@@ -11,6 +11,7 @@ import { FoodItem, MealType, PortionSize } from '../models/types';
 import { Colors, Spacing, BorderRadius, FontSizes } from '../constants/theme';
 import { MEAL_TYPES, PORTION_SIZES } from '../utils/validation';
 import { MealIcon } from './MealIcon';
+import { PortionIcon } from './PortionIcon';
 
 interface FoodInputRowProps {
   food: FoodItem;
@@ -69,7 +70,11 @@ export const FoodInputRow: React.FC<FoodInputRowProps> = ({
           onPress={() => setShowPortionModal(true)}
         >
           <Text style={styles.portionText}>{food.portion}</Text>
-          <View style={styles.portionIndicator} />
+          <PortionIcon 
+            portion={food.portion} 
+            selected={true}
+            size={20}
+          />
         </TouchableOpacity>
         {/* Remove Button */}
         {showRemoveButton && onRemove && (
@@ -128,13 +133,12 @@ export const FoodInputRow: React.FC<FoodInputRowProps> = ({
                 style={styles.portionOption}
                 onPress={() => handlePortionSelect(portion)}
               >
-                <Text style={styles.portionOptionText}>{portion} portion</Text>
-                <View
-                  style={[
-                    styles.portionRadio,
-                    food.portion === portion && styles.portionRadioSelected,
-                  ]}
+                <PortionIcon 
+                  portion={portion} 
+                  selected={food.portion === portion}
+                  size={32}
                 />
+                <Text style={styles.portionOptionText}>{portion} portion</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -183,12 +187,6 @@ const styles = StyleSheet.create({
     fontSize: FontSizes.small,
     color: Colors.textPrimary,
     marginRight: Spacing.xs,
-  },
-  portionIndicator: {
-    width: 14,
-    height: 14,
-    borderRadius: BorderRadius.circle,
-    backgroundColor: Colors.primary,
   },
   removeButton: {
     borderRadius: 12,
@@ -245,22 +243,13 @@ const styles = StyleSheet.create({
   portionOption: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     paddingVertical: Spacing.sm,
     paddingHorizontal: Spacing.xs,
   },
   portionOptionText: {
     fontSize: FontSizes.small,
     color: Colors.textPrimary,
-    textAlign: 'center',
-  },
-  portionRadio: {
-    width: 14,
-    height: 14,
-    borderRadius: BorderRadius.circle,
-    backgroundColor: Colors.buttonSecondary,
-  },
-  portionRadioSelected: {
-    backgroundColor: Colors.primary,
+    marginLeft: Spacing.sm,
+    flex: 1,
   },
 });

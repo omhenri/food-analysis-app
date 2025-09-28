@@ -42,8 +42,8 @@ export class BackendAnalysisService {
         throw new Error(backendResponse.error || 'Backend analysis failed');
       }
 
-      // Convert backend response to app format
-      const analysisResults = this.backendService.convertToAnalysisResults(backendResponse);
+      // Convert backend response to app format, passing original foods for portion calculation
+      const analysisResults = this.backendService.convertToAnalysisResults(backendResponse, backendFoods);
       console.log('Analysis results:', analysisResults);
       console.log('Backend analysis completed successfully');
       return analysisResults;

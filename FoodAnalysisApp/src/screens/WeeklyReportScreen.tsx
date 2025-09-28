@@ -19,12 +19,7 @@ import { useAnalysisData } from '../hooks/useAnalysisData';
 import { DatabaseService } from '../services/DatabaseService';
 import { AnalysisServiceManager } from '../services/AnalysisServiceManager';
 import { ComparisonData } from '../models/types';
-
-type RecordsStackParamList = {
-  PastRecords: undefined;
-  DayDetail: { day: any };
-  WeeklyReport: { weekId: number };
-};
+import { RecordsStackParamList } from '../navigation/AppNavigator';
 
 type WeeklyReportScreenRouteProp = RouteProp<RecordsStackParamList, 'WeeklyReport'>;
 type WeeklyReportScreenNavigationProp = StackNavigationProp<RecordsStackParamList, 'WeeklyReport'>;
@@ -168,7 +163,7 @@ export const WeeklyReportScreen: React.FC = () => {
         }
 
         comparisons.push({
-          substance: nutrient.name,
+          substance: nutrient.name.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
           consumed: consumed,
           recommended: recommended,
           percentage: percentage,
@@ -246,9 +241,7 @@ export const WeeklyReportScreen: React.FC = () => {
       const data = await analysisServiceManager.getNeutralizationRecommendations(overdosed);
 
       // Navigate to the neutralization recommendations screen
-      // Note: We need to add this navigation route or handle it appropriately
-      console.log('Weekly recommendations data:', data);
-      Alert.alert('Recommendations Generated', 'Weekly recommendations have been generated successfully.');
+      navigation.navigate('NeutralizationRecommendations', { recommendations: data });
     } catch (error) {
       console.error('Error fetching weekly recommendations:', error);
       Alert.alert(

@@ -339,7 +339,7 @@ export class BackendApiService {
   }
 
   // Convert backend response to app AnalysisResult format
-  public convertToAnalysisResults(backendResponse: BackendResponse<BackendAnalysisData[]>): AnalysisResult[] {
+  public convertToAnalysisResults(backendResponse: BackendResponse<BackendAnalysisData[]>, originalFoods?: BackendFoodItem[]): AnalysisResult[] {
     console.log('BackendApiService.convertToAnalysisResults called with:', {
       success: backendResponse.success,
       dataLength: backendResponse.data?.length || 0,
@@ -357,9 +357,18 @@ export class BackendApiService {
     });
 
     return backendResponse.data.map((data, index) => {
+      // Get portion multiplier for this food item
+      const originalFood = originalFoods?.[index];
+      const portionMultiplier = originalFood ? this.getPortionMultiplier(originalFood.portion) : 1.0;
+      
+      console.log(`Applying portion multiplier ${portionMultiplier} for food ${data.food_name} (${originalFood?.portion || '1/1'})`);
+
       // Convert ingredients to string array and keep detailed info
       const ingredients = data.ingredients.map(ing => ing.name);
-      const ingredientDetails = data.ingredients;
+      const ingredientDetails = data.ingredients.map(ing => ({
+        ...ing,
+        portion_percent: ing.portion_percent * portionMultiplier
+      }));
 
       // Convert ALL nutrients to ChemicalSubstances
       const chemicalSubstances: ChemicalSubstance[] = [];
@@ -382,7 +391,7 @@ export class BackendApiService {
           chemicalSubstances.push({
             name: nutrient.full_name,
             category,
-            amount: nutrient.total_g,
+            amount: nutrient.total_g * portionMultiplier,
             mealType: data.meal_type as any, // Cast to MealType
           });
         }
@@ -395,9 +404,16 @@ export class BackendApiService {
         ingredientDetails,
         chemicalSubstances,
         analyzedAt: new Date().toISOString(),
-        // Add additional fields for richer display
-        servingInfo: data.serving,
+        // Add additional fields for richer display (with portion applied)
+        servingInfo: {
+          ...data.serving,
+          grams: data.serving.grams * portionMultiplier
+        },
         detailedNutrients: data.nutrients_g,
+        portionInfo: {
+          portion: originalFood?.portion || '1/1',
+          multiplier: portionMultiplier
+        },
       } as AnalysisResult & { servingInfo?: any; detailedNutrients?: any };
 
       console.log(`Converted result ${index}:`, {
@@ -409,6 +425,18 @@ export class BackendApiService {
 
       return result;
     });
+  }
+
+  // Get portion multiplier
+  private getPortionMultiplier(portion: string): number {
+    switch (portion) {
+      case '1/1': return 1.0;
+      case '1/2': return 0.5;
+      case '1/3': return 0.33;
+      case '1/4': return 0.25;
+      case '1/8': return 0.125;
+      default: return 1.0;
+    }
   }
 
   // Get weekly recommended intake from backend
