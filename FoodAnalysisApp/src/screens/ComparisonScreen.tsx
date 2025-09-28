@@ -197,11 +197,12 @@ export const ComparisonScreen: React.FC<ComparisonScreenProps> = ({
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity style={styles.backButtonHeader} onPress={onBackPress}>
-            <Text style={styles.backButtonHeaderText}>← Back</Text>
+            <Text style={styles.backButtonHeaderText}>←</Text>
           </TouchableOpacity>
           <View style={styles.titleContainer}>
             <Text style={styles.title}>Daily Comparison</Text>
           </View>
+          <View style={styles.headerSpacer} />
         </View>
 
         {/* Summary */}
@@ -259,13 +260,21 @@ export const ComparisonScreen: React.FC<ComparisonScreenProps> = ({
               Need help balancing your nutrients?
             </Text>
             <TouchableOpacity
-              style={styles.recommendationButton}
+              style={[
+                styles.recommendationButton,
+                isLoadingRecommendations && styles.recommendationButtonLoading
+              ]}
               onPress={handleRecommendationPress}
               activeOpacity={0.7}
               disabled={isLoadingRecommendations}
             >
               {isLoadingRecommendations ? (
-                <ActivityIndicator size="small" color={Colors.white} />
+                <View style={styles.loadingContent}>
+                  <ActivityIndicator size="small" color={Colors.white} />
+                  <Text style={[styles.recommendationButtonText, styles.buttonLoadingText]}>
+                    Loading...
+                  </Text>
+                </View>
               ) : (
                 <Text style={styles.recommendationButtonText}>
                   Get Recommendations
@@ -289,31 +298,36 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
   },
   header: {
-    position: 'relative',
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingVertical: Spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
+    minHeight: 60,
   },
   backButtonHeader: {
-    position: 'absolute',
-    left: 0,
-    top: Spacing.md,
-    zIndex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    minWidth: 80,
   },
   backButtonHeaderText: {
     fontSize: FontSizes.medium,
     color: Colors.black,
   },
   titleContainer: {
-    alignItems: 'center',
+    flex: 1,
     justifyContent: 'center',
+    alignItems: 'center',
   },
   title: {
     fontSize: FontSizes.xlarge,
     fontWeight: '600',
     color: Colors.textPrimary,
     textAlign: 'center',
+  },
+  headerSpacer: {
+    minWidth: 80,
   },
   summaryContainer: {
     backgroundColor: Colors.white,
@@ -405,11 +419,24 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.sm,
     paddingHorizontal: Spacing.lg,
     alignItems: 'center',
+    minHeight: 44, // Fixed minimum height to prevent shrinking
+    minWidth: 220
+  },
+  recommendationButtonLoading: {
+    opacity: 0.8,
+  },
+  loadingContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   recommendationButtonText: {
     fontSize: FontSizes.medium,
     color: Colors.white,
     fontWeight: '600',
+  },
+  buttonLoadingText: {
+    marginLeft: 8, // Add spacing when used with spinner
   },
   loadingContainer: {
     flex: 1,

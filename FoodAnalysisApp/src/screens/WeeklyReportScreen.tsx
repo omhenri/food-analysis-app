@@ -261,11 +261,12 @@ export const WeeklyReportScreen: React.FC = () => {
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity style={styles.backButtonHeader} onPress={onBackPress}>
-            <Text style={styles.backButtonHeaderText}>← Back</Text>
+            <Text style={styles.backButtonHeaderText}>←</Text>
           </TouchableOpacity>
           <View style={styles.titleContainer}>
             <Text style={styles.title}>Weekly Comparison</Text>
           </View>
+          <View style={styles.headerSpacer} />
         </View>
 
         {/* Summary */}
@@ -325,31 +326,36 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
   },
   header: {
-    position: 'relative',
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingVertical: Spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
+    minHeight: 60,
   },
   backButtonHeader: {
-    position: 'absolute',
-    left: 0,
-    top: Spacing.md,
-    zIndex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    minWidth: 80,
   },
   backButtonHeaderText: {
     fontSize: FontSizes.medium,
     color: Colors.black,
   },
   titleContainer: {
-    alignItems: 'center',
+    flex: 1,
     justifyContent: 'center',
+    alignItems: 'center',
   },
   title: {
     fontSize: FontSizes.xlarge,
     fontWeight: '600',
     color: Colors.textPrimary,
     textAlign: 'center',
+  },
+  headerSpacer: {
+    minWidth: 80,
   },
   summaryContainer: {
     backgroundColor: Colors.white,

@@ -1577,13 +1577,14 @@ REQUIREMENTS
 1. Assume a standard **one-person serving** (typical recipe or portion). If ambiguous, pick the most common interpretation.  
 2. The **ingredients** array must list all key components, including main items and extras like *seasonings, oils, condiments, sauces, or garnishes*. Each ingredient has a portion_percent, summing to **100 ± 0.1**.  
 3. The **nutrients_g** object must contain only those nutrients that are > 0 for the dish. For each nutrient, include:
-   - full_name  
-   - class (macronutrient | fatty_acid | amino_acid | mineral | vitamin | bioactive | organic_acid | sterol | sweetener | other)  
-   - impact (positive | neutral | negative)  
-   - total_g (grams, always numeric)  
-   - by_ingredient: list of {{ingredient, grams, percent_of_chemical}} that sums to the nutrient's total_g.  
-4. Units: always grams. Convert mg → g (e.g., 730 mg = 0.73; 120 µg = 0.00012).  
-5. Output only a JSON array, no prose, no markdown, no comments.  
+   - full_name (descriptive name of the nutrient)
+   - class (one of: "macronutrient" | "fatty_acid" | "amino_acid" | "mineral" | "vitamin" | "bioactive" | "organic_acid" | "sterol" | "sweetener" | "other")
+   - impact (one of: "positive" | "neutral" | "negative")
+   - total_g (grams for nutrients, kcal for energy_kcal, always numeric)  
+   - by_ingredient: list of {{ingredient, grams_or_kcal, percent_of_chemical}} that sums to the nutrient's total_g.  
+4. Units: Use grams for all nutrients EXCEPT energy_kcal which should be in kilocalories (kcal). Convert mg → g (e.g., 730 mg = 0.73; 120 µg = 0.00012).  
+5. Output only a JSON array, no prose, no markdown, no comments.
+6. **CRITICAL**: Use ONLY singular forms of nutrients. DO NOT use plural forms (e.g., use "carbohydrate_g", not "carbohydrates_g"). Always include energy_kcal (calories) as a key nutrient.
 
 OUTPUT SCHEMA
 Return a JSON array of objects, each with exactly these keys:
@@ -1609,6 +1610,7 @@ Return a JSON array of objects, each with exactly these keys:
         ]
       }}
       // DO NOT INCLUDE nutrient if total_g is 0.0
+      // Always include energy_kcal (calories) as a key nutrient
     }}
   }}
 ]
@@ -1616,14 +1618,15 @@ Return a JSON array of objects, each with exactly these keys:
 VALIDATION
 - Sum(ingredients.portion_percent) = 100 ± 0.1.
 - For each nutrient: Sum(by_ingredient.grams) = total_g ± 0.1, and Sum(by_ingredient.percent_of_chemical) = 100 ± 0.1 (unless total_g == 0, then by_ingredient MUST be []).
-- All numeric fields are numbers (no strings or units). All nutrient amounts in grams. Convert mg/µg to grams before reporting.
+- All numeric fields are numbers (no strings or units). All nutrient amounts in grams EXCEPT energy_kcal in kilocalories. Convert mg/µg to grams before reporting.
+- Use singular forms of nutrients only - no plural forms allowed (e.g., use "carbohydrate_g", not "carbohydrates_g").
 
 CRITICAL: Before finishing your response, validate that your JSON is complete and parseable:
 1. Count opening and closing braces: every {{ must have a }}
 2. Count opening and closing brackets: every [ must have a ]
 3. Ensure no trailing commas before closing braces/brackets
 4. Test that the JSON can be parsed successfully
-5. If the response would be too long, prioritize core nutrients (protein, carbs, fat, fiber, vitamins C/A/D, minerals Ca/Fe/K) and omit less critical ones, but maintain valid structure
+5. If the response would be too long, prioritize core nutrients (energy_kcal, protein_g, carbohydrate_g, total_fat_g, fiber_g, vitamin_c_g, vitamin_a_rae_g, calcium_g, iron_g, potassium_g) and omit less critical ones, but maintain valid structure
 
 Output ONLY the final JSON array; no explanations, no markdown, no additional text."""
 

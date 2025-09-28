@@ -146,7 +146,6 @@ export const DayDetailScreen: React.FC = () => {
 
     return (
       <View style={styles.foodEntriesSection}>
-        <Text style={styles.sectionTitle}>Food Entries</Text>
         {MEAL_TYPES.map(mealType => {
           const entries = entriesByMealType[mealType];
           if (entries.length === 0) return null;
@@ -248,9 +247,12 @@ export const DayDetailScreen: React.FC = () => {
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-            <Text style={styles.backButtonText}>← Back</Text>
+            <Text style={styles.backButtonText}>←</Text>
           </TouchableOpacity>
-          <Text style={styles.title}>Day Details</Text>
+          <View style={styles.titleContainer}>
+            <Text style={styles.title}>Day Details</Text>
+          </View>
+          <View style={styles.headerSpacer} />
         </View>
 
         {/* Day Info */}
@@ -320,21 +322,34 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.md,
     backgroundColor: Colors.background,
+    minHeight: 60, // Ensure consistent height for proper alignment
   },
   backButton: {
-    marginRight: Spacing.sm,
+    justifyContent: 'center',
+    alignItems: 'center',
+    minWidth: 80, // Fixed width to ensure consistent spacing
   },
   backButtonText: {
     fontSize: FontSizes.medium,
     color: Colors.white,
   },
+  titleContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   title: {
     fontSize: FontSizes.xlarge,
     fontWeight: '600',
     color: Colors.white,
+    textAlign: 'center',
+  },
+  headerSpacer: {
+    minWidth: 80, // Same width as backButton to balance the layout
   },
   dayInfoContainer: {
     backgroundColor: Colors.white,
@@ -433,16 +448,13 @@ const styles = StyleSheet.create({
     marginTop: Spacing.sm,
   },
   foodEntriesSection: {
-    marginBottom: Spacing.lg,
   },
   analysisSection: {
-    marginTop: Spacing.md,
   },
   mealSection: {
     backgroundColor: Colors.white,
     borderRadius: BorderRadius.medium,
-    padding: Spacing.md,
-    marginBottom: Spacing.sm,
+    padding: Spacing.xs,
     shadowColor: Colors.shadow,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,

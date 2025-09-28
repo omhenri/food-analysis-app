@@ -177,9 +177,12 @@ export const AnalysisScreen: React.FC<AnalysisScreenProps> = ({
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity style={styles.backButtonHeader} onPress={onBackPress}>
-            <Text style={styles.backButtonHeaderText}>← Back</Text>
+            <Text style={styles.backButtonHeaderText}>←</Text>
           </TouchableOpacity>
-          <Text style={styles.title}>Analysis Results</Text>
+          <View style={styles.titleContainer}>
+            <Text style={styles.title}>Analysis Results</Text>
+          </View>
+          <View style={styles.headerSpacer} />
         </View>
 
         {/* Analysis Results */}
@@ -238,21 +241,34 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingVertical: Spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
+    minHeight: 60,
   },
   backButtonHeader: {
-    marginRight: Spacing.sm,
+    justifyContent: 'center',
+    alignItems: 'center',
+    minWidth: 80,
   },
   backButtonHeaderText: {
     fontSize: FontSizes.medium,
-    color: Colors.primary,
+    color: Colors.textPrimary,
+  },
+  titleContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   title: {
     fontSize: FontSizes.xlarge,
     fontWeight: '600',
     color: Colors.textPrimary,
+    textAlign: 'center',
+  },
+  headerSpacer: {
+    minWidth: 80,
   },
   scrollView: {
     flex: 1,

@@ -72,6 +72,21 @@ export const ComparisonCard: React.FC<ComparisonCardProps> = ({
     return `${percentage}%`;
   };
 
+  const getProgressBarColor = (): string => {
+    if (comparisonData.recommended === 0) {
+      return Colors.textSecondary;
+    }
+    
+    const percentage = (comparisonData.consumed / comparisonData.recommended) * 100;
+    
+    // Green if percentage is 50% or below, red if above 50%
+    if (percentage <= 50) {
+      return Colors.success; // Green
+    } else {
+      return Colors.error; // Red
+    }
+  };
+
   return (
     <View style={styles.container}>
       {/* Header */}
@@ -118,7 +133,7 @@ export const ComparisonCard: React.FC<ComparisonCardProps> = ({
                 styles.progressFill,
                 {
                   width: getProgressBarWidth() as any, // Type assertion for width string
-                  backgroundColor: Colors.userActual, // Teal for user actuals
+                  backgroundColor: getProgressBarColor(), // Dynamic color based on percentage
                 }
               ]}
             />
