@@ -1375,7 +1375,7 @@ class FoodAnalyzer:
                     {"role": "system", "content": "You are a professional nutritionist providing evidence-based nutritional recommendations. Always return valid JSON responses with the exact structure requested."},
                     {"role": "user", "content": prompt}
                 ],
-                max_tokens=2000,
+                max_tokens=12000,
                 temperature=0.1  # Low temperature for consistency
             )
 
@@ -1434,32 +1434,10 @@ Return ONLY a valid JSON object with recommended weekly intake values for adults
   "disclaimer": "These are general recommendations for a 7-day period. Individual needs may vary based on health status, activity level, and specific conditions. Consult a healthcare professional for personalized advice."
 }
 
-RECOMMENDATION GUIDELINES:
-
-1. **Macronutrients:**
-   - Protein: 350g (7 days × 50g RDA - General average recommendation for adults aged 18-29)
-   - Fat: 455g (7 days × 65g DRI - General average recommendation based on 20-35% of total daily calories)
-   - Carbohydrate: 2100g (7 days × 300g DRI - General average recommendation based on 45-65% of total daily calories)
-   - Fiber: 175g (7 days × 25g EFSA - Minimum recommended daily intake for adults)
-   - Sugar: 350g (7 days × 50g WHO - Maximum recommended daily limit for added sugars)
-
-2. **Minerals:**
-   - Sodium: 16.1g (7 days × 2.3g WHO/FAO - Maximum recommended daily intake for adults)
-   - Potassium: 24.5g (7 days × 3.5g EFSA - Adequate intake recommendation for adults)
-   - Calcium: 7.0g (7 days × 1.0g RDA - Recommended daily allowance for adults aged 19-50)
-   - Iron: 0.126g (7 days × 0.018g RDA - General recommendation using women's RDA to cover higher needs)
-   - Magnesium: 2.8g (7 days × 0.4g RDA - General average recommendation for adults)
-
-3. **Vitamins:**
-   - Vitamin C: 0.63g (7 days × 0.09g RDA - Recommended daily allowance for adults)
-   - Vitamin D: 0.00014g (7 days × 0.00002g RDA - General recommendation for adults)
-
-4. **Other nutrients:**
-   - Include any other nutrients present in the input that have established recommendations
-
 IMPORTANT NOTES:
 - All values are multiplied by 7 to represent weekly intake recommendations
 - Use the exact sources and notes as specified above for each nutrient
+- MUST include each of the nutrients received
 - Focus on 18-29 age group recommendations
 - All values must be in grams
 - Return ONLY valid JSON, no additional text or formatting"""
