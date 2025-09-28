@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   Alert,
+  Animated,
 } from 'react-native';
 import { ComparisonData, AnalysisResult } from '../models/types';
 import { ComparisonCard } from '../components/ComparisonCard';
@@ -44,6 +45,10 @@ export const ComparisonScreen: React.FC<ComparisonScreenProps> = ({
 
   const [filterStatus, setFilterStatus] = useState<'all' | 'under' | 'optimal' | 'over'>('all');
   const [isLoadingRecommendations, setIsLoadingRecommendations] = useState<boolean>(false);
+  
+  // State for collapsible summary section - initially expanded
+  const [isSummaryExpanded, setIsSummaryExpanded] = useState(true);
+  const [summaryAnimation] = useState(new Animated.Value(1));
 
   useEffect(() => {
     loadComparison();
@@ -63,6 +68,18 @@ export const ComparisonScreen: React.FC<ComparisonScreenProps> = ({
         ]
       );
     }
+  };
+
+  const toggleSummary = () => {
+    const toValue = isSummaryExpanded ? 0 : 1;
+    
+    Animated.timing(summaryAnimation, {
+      toValue,
+      duration: 300,
+      useNativeDriver: false,
+    }).start();
+    
+    setIsSummaryExpanded(!isSummaryExpanded);
   };
 
   const getFilteredComparisonData = (): ComparisonData[] => {
@@ -205,16 +222,39 @@ export const ComparisonScreen: React.FC<ComparisonScreenProps> = ({
           <View style={styles.headerSpacer} />
         </View>
 
-        {/* Summary */}
+        {/* Summary - Collapsible */}
         <View style={styles.summaryContainer}>
-          <Text style={styles.summaryTitle}>Nutritional Analysis Summary</Text>
-          <Text style={styles.summaryText}>{getSummaryText()}</Text>
-          <Text style={styles.summarySubtext}>
-            Compared to recommended daily intake for adults aged 18-29
-          </Text>
-          <Text style={styles.optimalRangeText}>
-            💡 Optimal range is 80-120% of recommended daily intake
-          </Text>
+          <TouchableOpacity 
+            style={styles.summaryHeader}
+            onPress={toggleSummary}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.summaryTitle}>Nutritional Analysis Summary</Text>
+            <Text style={styles.expandIcon}>
+              {isSummaryExpanded ? '−' : '+'}
+            </Text>
+          </TouchableOpacity>
+          
+          <Animated.View 
+            style={[
+              styles.summaryContent,
+              {
+                maxHeight: summaryAnimation.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0, 500], // Adjust max height as needed
+                }),
+                opacity: summaryAnimation,
+              }
+            ]}
+          >
+            <Text style={styles.summaryText}>{getSummaryText()}</Text>
+            <Text style={styles.summarySubtext}>
+              Compared to recommended daily intake for adults aged 18-29
+            </Text>
+            <Text style={styles.optimalRangeText}>
+              💡 Optimal range is 80-120% of recommended daily intake
+            </Text>
+          </Animated.View>
         </View>
 
         {/* Filter Buttons */}
@@ -332,19 +372,37 @@ const styles = StyleSheet.create({
   summaryContainer: {
     backgroundColor: Colors.white,
     borderRadius: BorderRadius.medium,
-    padding: Spacing.sm,
     marginVertical: Spacing.sm,
     shadowColor: Colors.shadow,
     shadowOffset: { width: 2, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 5,
     elevation: 3,
+    overflow: 'hidden',
+  },
+  summaryHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.sm,
+    paddingTop: Spacing.xs,
   },
   summaryTitle: {
     fontSize: FontSizes.medium,
     fontWeight: '600',
     color: Colors.textPrimary,
-    marginBottom: Spacing.xs,
+    flex: 1,
+  },
+  expandIcon: {
+    fontSize: FontSizes.xlarge,
+    fontWeight: 'bold',
+    color: Colors.primary,
+    marginLeft: Spacing.sm,
+  },
+  summaryContent: {
+    paddingHorizontal: Spacing.sm,
+    paddingBottom: Spacing.xs,
+    overflow: 'hidden',
   },
   summaryText: {
     fontSize: FontSizes.medium,

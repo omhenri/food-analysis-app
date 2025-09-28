@@ -12,12 +12,9 @@ import {
 } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { Day, Week, FoodEntry, AnalysisResult, ComparisonData } from '../models/types';
+import { Day, Week, FoodEntry, AnalysisResult } from '../models/types';
 import { Colors, Spacing, FontSizes, BorderRadius } from '../constants/theme';
 import { DatabaseService } from '../services/DatabaseService';
-import { ComparisonCard } from '../components/ComparisonCard';
-import { WeeklyReportService } from '../services/WeeklyReportService';
-import { AnalysisServiceManager } from '../services/AnalysisServiceManager';
 
 type RecordsStackParamList = {
   PastRecords: undefined;
@@ -46,12 +43,9 @@ export const PastRecordsScreen: React.FC = () => {
   const [selectedTab, setSelectedTab] = useState<TabType>('day1');
   const [currentWeekDays, setCurrentWeekDays] = useState<DayWithData[]>([]);
   const [selectedDayData, setSelectedDayData] = useState<DayWithData | null>(null);
-  const [weeklyComparisonData, setWeeklyComparisonData] = useState<ComparisonData[]>([]);
   const [isLoadingDayData, setIsLoadingDayData] = useState<boolean>(false);
 
   const databaseService = DatabaseService.getInstance();
-  const weeklyReportService = WeeklyReportService.getInstance();
-  const analysisServiceManager = AnalysisServiceManager.getInstance();
 
   useEffect(() => {
     initializeData();
@@ -74,10 +68,8 @@ export const PastRecordsScreen: React.FC = () => {
 
   // Load data when tab changes
   useEffect(() => {
-    if (selectedTab !== 'week-report') {
+    if (selectedTab.startsWith('day')) {
       loadSelectedDayData();
-    } else {
-      loadWeeklyComparisonData();
     }
   }, [selectedTab, currentWeekDays]);
 
@@ -174,12 +166,16 @@ export const PastRecordsScreen: React.FC = () => {
     } else if (tab.startsWith('day')) {
       setSelectedTab(tab);
     } else if (tab === 'week-report') {
-      setSelectedTab(tab);
+      // Navigate to WeeklyReportScreen instead of using inline renderWeeklyReport
+      const currentWeek = getCurrentWeek();
+      if (currentWeek) {
+        navigation.navigate('WeeklyReport', { weekId: currentWeek.id });
+      }
     }
   };
 
   const loadSelectedDayData = async () => {
-    if (selectedTab === 'week-report' || !selectedTab.startsWith('day')) return;
+    if (!selectedTab.startsWith('day')) return;
 
     const dayNumber = parseInt(selectedTab.replace('day', ''));
     const dayData = currentWeekDays.find(day => day.dayNumber === dayNumber);
@@ -190,126 +186,8 @@ export const PastRecordsScreen: React.FC = () => {
     setSelectedDayData(dayData || null);
   };
 
-  const loadWeeklyComparisonData = async () => {
-    if (weeks.length === 0) return;
 
-    const currentWeek = weeks[Math.min(currentWeekIndex, weeks.length - 1)];
-    setIsLoadingDayData(true);
-    try {
-      // Check if weekly comparison data exists in database
-      const storedComparison = await databaseService.getWeeklyComparisonForWeek(currentWeek.id);
-      if (storedComparison) {
-        setWeeklyComparisonData(storedComparison);
-        return;
-      }
 
-      // If not in database, generate from nutrient aggregation
-      await generateWeeklyComparisonData(currentWeek.id);
-    } catch (err) {
-      console.error('Failed to load weekly comparison:', err);
-      setWeeklyComparisonData([]);
-    } finally {
-      setIsLoadingDayData(false);
-    }
-  };
-
-  const generateWeeklyComparisonData = async (weekId: number) => {
-    try {
-      setIsLoadingDayData(true);
-
-      // Get all nutrients consumed in this week
-      const weeklyNutrients = await getWeeklyNutrientsConsumed(weekId);
-
-      // Filter out nutrients with 0 or invalid amounts
-      const validNutrients = weeklyNutrients.filter(nutrient =>
-        nutrient.total_amount > 0 && nutrient.name && nutrient.name.trim()
-      );
-
-      if (validNutrients.length === 0) {
-        setWeeklyComparisonData([]);
-        return;
-      }
-
-      // Get weekly recommended intake from AI
-      const recommendedIntake = await analysisServiceManager.getWeeklyRecommendedIntake(validNutrients);
-
-      // Generate comparison data
-      const comparisonData = generateComparisonFromRecommendedIntake(validNutrients, recommendedIntake);
-
-      // Save to database
-      await databaseService.saveWeeklyComparisonResult(weekId, comparisonData);
-
-      setWeeklyComparisonData(comparisonData);
-    } catch (error) {
-      console.error('Failed to generate weekly comparison data:', error);
-      setWeeklyComparisonData([]);
-    } finally {
-      setIsLoadingDayData(false);
-    }
-  };
-
-  const getWeeklyNutrientsConsumed = async (weekId: number): Promise<Array<{name: string, total_amount: number, unit: string}>> => {
-    // Get all days in this week
-    const days = await databaseService.getDaysForWeek(weekId);
-
-    const nutrientTotals: {[key: string]: {total_amount: number, unit: string}} = {};
-
-    for (const day of days) {
-      // Get analysis results for this day
-      const analysisResults = await databaseService.getAnalysisForDay(day.id);
-
-      for (const result of analysisResults) {
-        for (const substance of result.chemicalSubstances) {
-          const key = substance.name.toLowerCase();
-          if (!nutrientTotals[key]) {
-            nutrientTotals[key] = { total_amount: 0, unit: 'grams' };
-          }
-          nutrientTotals[key].total_amount += substance.amount;
-        }
-      }
-    }
-
-    return Object.entries(nutrientTotals).map(([name, data]) => ({
-      name,
-      total_amount: data.total_amount,
-      unit: data.unit
-    }));
-  };
-
-  const generateComparisonFromRecommendedIntake = (
-    nutrientsConsumed: Array<{name: string, total_amount: number, unit: string}>,
-    recommendedIntake: any
-  ): ComparisonData[] => {
-    const comparisons: ComparisonData[] = [];
-
-    for (const nutrient of nutrientsConsumed) {
-      const recommended = recommendedIntake.recommended_intakes[nutrient.name];
-      if (recommended !== undefined) {
-        const consumed = nutrient.total_amount;
-        const percentage = (consumed / recommended) * 100;
-
-        let status: 'optimal' | 'under' | 'over';
-        if (percentage >= 90 && percentage <= 110) {
-          status = 'optimal';
-        } else if (percentage < 90) {
-          status = 'under';
-        } else {
-          status = 'over';
-        }
-
-        comparisons.push({
-          substance: nutrient.name,
-          consumed: consumed,
-          recommended: recommended,
-          percentage: percentage,
-          status: status,
-          unit: nutrient.unit
-        });
-      }
-    }
-
-    return comparisons;
-  };
 
   const getCurrentWeek = (): Week | null => {
     if (weeks.length === 0) return null;
@@ -445,49 +323,6 @@ export const PastRecordsScreen: React.FC = () => {
     );
   };
 
-  const renderWeeklyReport = () => {
-    const currentWeek = getCurrentWeek();
-    if (!currentWeek) return null;
-
-    return (
-      <View style={styles.weeklyReportContainer}>
-        <View style={styles.weeklyReportHeader}>
-          <Text style={styles.weeklyReportTitle}>Week {currentWeek.weekNumber} Report</Text>
-          <Text style={styles.weeklyReportDate}>
-            {new Date(currentWeek.startDate).toLocaleDateString('en-US', {
-              month: 'short',
-              day: 'numeric'
-            })} - {currentWeek.endDate ?
-              new Date(currentWeek.endDate).toLocaleDateString('en-US', {
-                month: 'short',
-                day: 'numeric'
-              }) : 'Present'}
-          </Text>
-        </View>
-
-        <Text style={styles.comparisonTitle}>Nutritional Analysis Summary</Text>
-
-        {weeklyComparisonData.length > 0 ? (
-          <ScrollView
-            style={styles.comparisonScrollView}
-            contentContainerStyle={styles.comparisonContent}
-            showsVerticalScrollIndicator={false}
-          >
-            {weeklyComparisonData.map((comparison, index) => (
-              <ComparisonCard
-                key={`${comparison.substance}-${index}`}
-                comparisonData={comparison}
-              />
-            ))}
-          </ScrollView>
-        ) : (
-          <View style={styles.noComparisonData}>
-            <Text style={styles.noComparisonText}>No comparison data available</Text>
-          </View>
-        )}
-      </View>
-    );
-  };
 
   const renderDayItem = ({ item: day }: { item: DayWithData }) => (
     <TouchableOpacity
@@ -601,8 +436,6 @@ export const PastRecordsScreen: React.FC = () => {
               <ActivityIndicator size="large" color="#6FF3E0" />
               <Text style={styles.loadingDayDataText}>Loading data...</Text>
             </View>
-          ) : selectedTab === 'week-report' ? (
-            renderWeeklyReport()
           ) : (
             renderDayDetail()
           )}
@@ -744,36 +577,6 @@ const styles = StyleSheet.create({
     fontSize: FontSizes.medium,
     color: Colors.white,
     fontWeight: '600',
-  },
-  weeklyReportContainer: {
-    flex: 1,
-    padding: Spacing.lg,
-  },
-  weeklyReportHeader: {
-    alignItems: 'center',
-    marginBottom: Spacing.lg,
-  },
-  comparisonTitle: {
-    fontSize: FontSizes.large,
-    fontWeight: '600',
-    color: Colors.black,
-    marginBottom: Spacing.md,
-    textAlign: 'center',
-  },
-  comparisonScrollView: {
-    flex: 1,
-  },
-  comparisonContent: {
-    paddingBottom: Spacing.lg,
-  },
-  noComparisonData: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  noComparisonText: {
-    fontSize: FontSizes.medium,
-    color: Colors.textSecondary,
   },
   listContent: {
     paddingHorizontal: Spacing.md,

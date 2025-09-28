@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   ScrollView,
   Alert,
+  Animated,
 } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -35,6 +36,11 @@ export const WeeklyReportScreen: React.FC = () => {
   const [weeklyComparisonData, setWeeklyComparisonData] = useState<ComparisonData[]>([]);
   const [isLoadingComparison, setIsLoadingComparison] = useState<boolean>(false);
   const [filterStatus, setFilterStatus] = useState<'all' | 'optimal' | 'under' | 'over'>('all');
+  const [isLoadingRecommendations, setIsLoadingRecommendations] = useState<boolean>(false);
+  
+  // State for collapsible summary section - initially expanded
+  const [isSummaryExpanded, setIsSummaryExpanded] = useState(true);
+  const [summaryAnimation] = useState(new Animated.Value(1));
 
   const databaseService = DatabaseService.getInstance();
   const analysisServiceManager = AnalysisServiceManager.getInstance();
@@ -180,16 +186,14 @@ export const WeeklyReportScreen: React.FC = () => {
   };
 
   const getSummaryText = (): string => {
-    const totalItems = weeklyComparisonData.length;
-    const optimalCount = weeklyComparisonData.filter(item => item.status === 'optimal').length;
-    const underCount = weeklyComparisonData.filter(item => item.status === 'under').length;
-    const overCount = weeklyComparisonData.filter(item => item.status === 'over').length;
+    const counts = getStatusCounts();
+    const { under, optimal, over, total } = counts;
 
-    if (totalItems === 0) {
-      return 'No nutritional data available for this week.';
+    if (total === 0) {
+      return 'No comparison data available';
     }
 
-    return `This week, you consumed ${totalItems} nutrients. ${optimalCount} are within optimal range, ${underCount} are below recommended levels, and ${overCount} are above recommended levels.`;
+    return `${optimal} optimal, ${under} below, ${over} above recommended levels`;
   };
 
   const getStatusCounts = () => {
@@ -208,6 +212,52 @@ export const WeeklyReportScreen: React.FC = () => {
 
   const hasComparisonData = (): boolean => {
     return weeklyComparisonData.length > 0;
+  };
+
+  const toggleSummary = () => {
+    const toValue = isSummaryExpanded ? 0 : 1;
+    
+    Animated.timing(summaryAnimation, {
+      toValue,
+      duration: 300,
+      useNativeDriver: false,
+    }).start();
+    
+    setIsSummaryExpanded(!isSummaryExpanded);
+  };
+
+  const getOverdosedSubstances = (): string[] => {
+    return weeklyComparisonData
+      .filter(item => item.status === 'over')
+      .map(item => item.substance);
+  };
+
+  const handleRecommendationPress = async () => {
+    const overdosed = getOverdosedSubstances();
+    if (overdosed.length === 0) {
+      Alert.alert('No Over-dosed Substances', 'You don\'t have any substances above recommended levels for this week.');
+      return;
+    }
+
+    try {
+      setIsLoadingRecommendations(true);
+
+      // Call neutralization recommendations using AnalysisServiceManager
+      const data = await analysisServiceManager.getNeutralizationRecommendations(overdosed);
+
+      // Navigate to the neutralization recommendations screen
+      // Note: We need to add this navigation route or handle it appropriately
+      console.log('Weekly recommendations data:', data);
+      Alert.alert('Recommendations Generated', 'Weekly recommendations have been generated successfully.');
+    } catch (error) {
+      console.error('Error fetching weekly recommendations:', error);
+      Alert.alert(
+        'Connection Error',
+        'Unable to connect to the server. Please check your connection and try again.'
+      );
+    } finally {
+      setIsLoadingRecommendations(false);
+    }
   };
 
   if (isLoadingComparison) {
@@ -269,14 +319,42 @@ export const WeeklyReportScreen: React.FC = () => {
           <View style={styles.headerSpacer} />
         </View>
 
-        {/* Summary */}
-        <View style={styles.summaryContainer}>
-          <Text style={styles.summaryTitle}>Nutritional Analysis Summary</Text>
-          <Text style={styles.summaryText}>{getSummaryText()}</Text>
-          <Text style={styles.summarySubtext}>
-            Optimal range is 90-110% of recommended intake. Values outside this range may indicate nutritional imbalances.
-          </Text>
-        </View>
+        {/* Summary - Collapsible */}
+        {hasComparisonData() && (
+          <View style={styles.summaryContainer}>
+            <TouchableOpacity 
+              style={styles.summaryHeader}
+              onPress={toggleSummary}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.summaryTitle}>Nutritional Analysis Summary</Text>
+              <Text style={styles.expandIcon}>
+                {isSummaryExpanded ? '−' : '+'}
+              </Text>
+            </TouchableOpacity>
+            
+            <Animated.View 
+              style={[
+                styles.summaryContent,
+                {
+                  maxHeight: summaryAnimation.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [0, 300],
+                  }),
+                  opacity: summaryAnimation,
+                }
+              ]}
+            >
+              <Text style={styles.summaryText}>{getSummaryText()}</Text>
+              <Text style={styles.summarySubtext}>
+                Compared to recommended weekly intake for adults aged 18-29
+              </Text>
+              <Text style={styles.optimalRangeText}>
+                💡 Optimal range is 90-110% of recommended weekly intake
+              </Text>
+            </Animated.View>
+          </View>
+        )}
 
         {/* Filter Buttons */}
         {hasComparisonData() && renderFilterButtons()}
@@ -310,7 +388,39 @@ export const WeeklyReportScreen: React.FC = () => {
               </TouchableOpacity>
             </View>
           )}
+
         </ScrollView>
+
+        {/* Get Recommendations Button - Outside ScrollView at bottom */}
+        {hasComparisonData() && getOverdosedSubstances().length > 0 && (
+          <View style={styles.bottomInfo}>
+            <Text style={styles.bottomInfoText}>
+              Need help balancing your weekly nutrients?
+            </Text>
+            <TouchableOpacity
+              style={[
+                styles.recommendationButton,
+                isLoadingRecommendations && styles.recommendationButtonLoading
+              ]}
+              onPress={handleRecommendationPress}
+              activeOpacity={0.7}
+              disabled={isLoadingRecommendations}
+            >
+              {isLoadingRecommendations ? (
+                <View style={styles.loadingContent}>
+                  <ActivityIndicator size="small" color={Colors.white} />
+                  <Text style={[styles.recommendationButtonText, styles.buttonLoadingText]}>
+                    Loading...
+                  </Text>
+                </View>
+              ) : (
+                <Text style={styles.recommendationButtonText}>
+                  Get Weekly Recommendations
+                </Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
     </SafeAreaView>
   );
@@ -360,14 +470,37 @@ const styles = StyleSheet.create({
   summaryContainer: {
     backgroundColor: Colors.white,
     borderRadius: BorderRadius.medium,
-    padding: Spacing.sm,
     marginVertical: Spacing.sm,
+    shadowColor: Colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    overflow: 'hidden',
+  },
+  summaryHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.sm,
+    paddingTop: Spacing.xs,
   },
   summaryTitle: {
     fontSize: FontSizes.large,
     fontWeight: '600',
     color: Colors.textPrimary,
-    marginBottom: Spacing.xs,
+    flex: 1,
+  },
+  expandIcon: {
+    fontSize: FontSizes.xlarge,
+    fontWeight: 'bold',
+    color: Colors.primary,
+    marginLeft: Spacing.sm,
+  },
+  summaryContent: {
+    paddingHorizontal: Spacing.sm,
+    paddingBottom: Spacing.xs,
+    overflow: 'hidden',
   },
   summaryText: {
     fontSize: FontSizes.medium,
@@ -378,7 +511,12 @@ const styles = StyleSheet.create({
   summarySubtext: {
     fontSize: FontSizes.small,
     color: Colors.textSecondary,
-    lineHeight: 18,
+    marginBottom: Spacing.xs,
+  },
+  optimalRangeText: {
+    fontSize: FontSizes.small,
+    color: Colors.info,
+    fontStyle: 'italic',
   },
   filterContainer: {
     flexDirection: 'row',
@@ -446,5 +584,48 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
     marginTop: Spacing.md,
     textAlign: 'center',
+  },
+  bottomInfo: {
+    backgroundColor: Colors.white,
+    borderRadius: BorderRadius.medium,
+    padding: Spacing.md,
+    marginVertical: Spacing.sm,
+    alignItems: 'center',
+    shadowColor: Colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  bottomInfoText: {
+    fontSize: FontSizes.small,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: Spacing.sm,
+  },
+  recommendationButton: {
+    backgroundColor: Colors.primary,
+    borderRadius: BorderRadius.medium,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.lg,
+    alignItems: 'center',
+    minHeight: 44,
+    minWidth: 220,
+  },
+  recommendationButtonLoading: {
+    opacity: 0.8,
+  },
+  loadingContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  recommendationButtonText: {
+    fontSize: FontSizes.medium,
+    color: Colors.white,
+    fontWeight: '600',
+  },
+  buttonLoadingText: {
+    marginLeft: 8,
   },
 });

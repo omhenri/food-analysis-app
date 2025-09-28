@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   SafeAreaView,
   ScrollView,
   TouchableOpacity,
+  Animated,
 } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -22,8 +23,24 @@ export const NeutralizationRecommendationsScreen: React.FC = () => {
 
   const { recommendations } = route.params;
 
+  // State for collapsible section - initially expanded
+  const [isSummaryExpanded, setIsSummaryExpanded] = useState(true);
+  const [summaryAnimation] = useState(new Animated.Value(1));
+
   const handleBackPress = () => {
     navigation.goBack();
+  };
+
+  const toggleSummary = () => {
+    const toValue = isSummaryExpanded ? 0 : 1;
+    
+    Animated.timing(summaryAnimation, {
+      toValue,
+      duration: 300,
+      useNativeDriver: false,
+    }).start();
+    
+    setIsSummaryExpanded(!isSummaryExpanded);
   };
 
   const renderRecommendationSection = (title: string, items: any[], icon: string) => {
@@ -112,20 +129,43 @@ export const NeutralizationRecommendationsScreen: React.FC = () => {
           <View style={styles.headerSpacer} />
         </View>
 
-        {/* Summary */}
+        {/* Summary - Collapsible */}
         <View style={styles.summary}>
-          <Text style={styles.summaryTitle}>Personalized Recommendations</Text>
-          <Text style={styles.summaryText}>
-            Based on your nutrient analysis, here are targeted recommendations to help neutralize excess substances in your diet.
-          </Text>
-          <Text style={styles.overdosedText}>
-            Over-dosed substances: {recommendations.overdosed_substances.join(', ')}
-          </Text>
-          {/* Disclaimer */}
-          <Text style={styles.disclaimerTitle}>⚠️ Important Disclaimer</Text>
-          <Text style={styles.disclaimerText}>
-            {recommendations.disclaimer}
-          </Text>
+          <TouchableOpacity 
+            style={styles.summaryHeader}
+            onPress={toggleSummary}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.summaryTitle}>Personalized Recommendations</Text>
+            <Text style={styles.expandIcon}>
+              {isSummaryExpanded ? '−' : '+'}
+            </Text>
+          </TouchableOpacity>
+          
+          <Animated.View 
+            style={[
+              styles.summaryContent,
+              {
+                maxHeight: summaryAnimation.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0, 1000], // Adjust max height as needed
+                }),
+                opacity: summaryAnimation,
+              }
+            ]}
+          >
+            <Text style={styles.summaryText}>
+              Based on your nutrient analysis, here are targeted recommendations to help neutralize excess substances in your diet.
+            </Text>
+            <Text style={styles.overdosedText}>
+              Over-dosed substances: {recommendations.overdosed_substances.join(', ')}
+            </Text>
+            {/* Disclaimer */}
+            <Text style={styles.disclaimerTitle}>⚠️ Important Disclaimer</Text>
+            <Text style={styles.disclaimerText}>
+              {recommendations.disclaimer}
+            </Text>
+          </Animated.View>
         </View>
 
         {/* Recommendations */}
@@ -200,7 +240,6 @@ const styles = StyleSheet.create({
   },
   summary: {
     backgroundColor: Colors.white,
-    padding: Spacing.md,
     margin: Spacing.md,
     borderRadius: BorderRadius.medium,
     shadowColor: Colors.shadow,
@@ -208,12 +247,31 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+    overflow: 'hidden',
+  },
+  summaryHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.md,
+    paddingTop: Spacing.xs,
   },
   summaryTitle: {
     fontSize: FontSizes.large,
     fontWeight: '600',
     color: Colors.textPrimary,
-    marginBottom: Spacing.xs,
+    flex: 1,
+  },
+  expandIcon: {
+    fontSize: FontSizes.xlarge,
+    fontWeight: 'bold',
+    color: Colors.primary,
+    marginLeft: Spacing.sm,
+  },
+  summaryContent: {
+    paddingHorizontal: Spacing.md,
+    paddingBottom: Spacing.xs,
+    overflow: 'hidden',
   },
   summaryText: {
     fontSize: FontSizes.small,
@@ -245,7 +303,7 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   sectionHeader: {
-    paddingTop: Spacing.sm,
+    paddingTop: Spacing.xs,
     flexDirection: 'row',
     alignItems: 'center',
   },
@@ -271,7 +329,6 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.xs,
   },
   recommendationDetails: {
-    marginBottom: Spacing.xs,
   },
   detailLabel: {
     fontSize: FontSizes.small,

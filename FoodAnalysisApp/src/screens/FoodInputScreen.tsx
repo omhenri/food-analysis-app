@@ -36,6 +36,15 @@ export const FoodInputScreen: React.FC<FoodInputScreenProps> = ({
   };
 
   const handleAddFood = () => {
+    if (foods.length >= 5) {
+      Alert.alert(
+        'Maximum Limit Reached',
+        'You can add up to 5 foods maximum for analysis.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
     const newFood: FoodItem = {
       id: generateFoodId(),
       name: '',
@@ -77,6 +86,9 @@ export const FoodInputScreen: React.FC<FoodInputScreenProps> = ({
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.title}>What's your poison?</Text>
+          <Text style={styles.counterText}>
+            {foods.length} / 5 foods added
+          </Text>
         </View>
 
         {/* Food Input List */}
@@ -96,9 +108,17 @@ export const FoodInputScreen: React.FC<FoodInputScreenProps> = ({
           ))}
 
           {/* Add More Food Button */}
-          <TouchableOpacity style={styles.addButton} onPress={handleAddFood}>
-            <Text style={styles.addButtonText}>+</Text>
-          </TouchableOpacity>
+          {foods.length < 5 ? (
+            <TouchableOpacity style={styles.addButton} onPress={handleAddFood}>
+              <Text style={styles.addButtonText}>+</Text>
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.maxLimitContainer}>
+              <Text style={styles.maxLimitText}>
+                Maximum 5 foods reached
+              </Text>
+            </View>
+          )}
         </ScrollView>
 
         {/* Analyze Button */}
@@ -139,6 +159,13 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     textTransform: 'capitalize',
   },
+  counterText: {
+    fontSize: FontSizes.small,
+    color: Colors.white,
+    textAlign: 'center',
+    marginTop: Spacing.xs,
+    opacity: 0.8,
+  },
   scrollView: {
     flex: 1,
   },
@@ -163,6 +190,18 @@ const styles = StyleSheet.create({
     fontSize: 24,
     color: Colors.inactive,
     fontWeight: 'bold',
+  },
+  maxLimitContainer: {
+    alignItems: 'center',
+    marginTop: Spacing.sm,
+    paddingVertical: Spacing.xs,
+  },
+  maxLimitText: {
+    fontSize: FontSizes.small,
+    color: Colors.white,
+    fontWeight: '500',
+    opacity: 0.7,
+    textAlign: 'center',
   },
   bottomSection: {
     paddingVertical: Spacing.md,

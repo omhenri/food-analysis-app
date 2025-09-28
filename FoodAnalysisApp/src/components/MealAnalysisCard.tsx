@@ -93,10 +93,15 @@ export const MealAnalysisCard: React.FC<MealAnalysisCardProps> = ({
     }));
   };
 
-  // Use opacity animation instead of height to allow content to expand naturally
+  // Use both opacity and height animations for proper collapsible behavior
   const contentOpacity = animation.interpolate({
     inputRange: [0, 1],
     outputRange: [0, 1],
+  });
+
+  const contentHeight = animation.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 1000], // Adjust max height as needed
   });
 
   return (
@@ -115,7 +120,15 @@ export const MealAnalysisCard: React.FC<MealAnalysisCardProps> = ({
       </TouchableOpacity>
 
       {/* Expandable Content */}
-      <Animated.View style={[styles.content, { opacity: contentOpacity }]}>
+      <Animated.View 
+        style={[
+          styles.content, 
+          { 
+            opacity: contentOpacity,
+            maxHeight: contentHeight,
+          }
+        ]}
+      >
         <View style={styles.contentInner}>
           {groupSubstancesByFood().map((foodData, index) => (
             <View key={index} style={styles.foodSection}>
@@ -229,10 +242,8 @@ const styles = StyleSheet.create({
   },
   contentInner: {
     paddingHorizontal: Spacing.sm,
-    paddingBottom: Spacing.sm,
   },
   foodSection: {
-    marginBottom: Spacing.sm,
   },
   foodName: {
     fontSize: FontSizes.medium,
