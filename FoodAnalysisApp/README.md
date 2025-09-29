@@ -95,3 +95,13 @@ To learn more about React Native, take a look at the following resources:
 - [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
 - [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
 - [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
+
+## 📄 Copyright
+
+**Copyright © 2025 RejuvenAI. All rights reserved.**
+
+This project and its contents are proprietary to RejuvenAI. Unauthorized copying, modification, distribution, or use of this software and its documentation is strictly prohibited without prior written consent from RejuvenAI.
+
+For licensing inquiries, please contact: [hello@hanrilaw.com](mailto:hello@hanrilaw.com)
+
+---

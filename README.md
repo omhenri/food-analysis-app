@@ -366,7 +366,7 @@ This project is part of the AWS Hackathon 2025 submission.
 
 This project and its contents are proprietary to RejuvenAI. Unauthorized copying, modification, distribution, or use of this software and its documentation is strictly prohibited without prior written consent from RejuvenAI.
 
-For licensing inquiries, please contact: [contact@rejuvenai.com](mailto:contact@rejuvenai.com)
+For licensing inquiries, please contact: [hello@hanrilaw.com](mailto:hello@hanrilaw.com)
 
 ---
 

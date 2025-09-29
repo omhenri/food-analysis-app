@@ -305,19 +305,12 @@ npm install
 - Stage-based deployments (dev/prod)
 - Proper IAM role management
 
-See [SERVERLESS_DEPLOYMENT.md](SERVERLESS_DEPLOYMENT.md) for detailed instructions.
+## 📄 Copyright
 
-### Option 2: Custom Bash Script
+**Copyright © 2025 RejuvenAI. All rights reserved.**
 
-The original deployment method using a custom bash script.
+This project and its contents are proprietary to RejuvenAI. Unauthorized copying, modification, distribution, or use of this software and its documentation is strictly prohibited without prior written consent from RejuvenAI.
 
-```bash
-# Deploy using bash script
-./deploy-to-aws.sh
-```
+For licensing inquiries, please contact: [hello@hanrilaw.com](mailto:hello@hanrilaw.com)
 
-See [AWS_DEPLOYMENT_GUIDE.md](AWS_DEPLOYMENT_GUIDE.md) for detailed instructions.
-
-## 📄 License
-
-This project is part of the AWS Hackathon 2025 submission.
+---
