@@ -1,0 +1,32 @@
+{
+  "name": "rejuvenai-flask-backend",
+  "version": "1.0.0",
+  "description": "RejuvenAI Flask Backend with Serverless Framework",
+  "main": "handler.py",
+  "scripts": {
+    "deploy": "serverless deploy",
+    "deploy:dev": "serverless deploy --stage dev",
+    "deploy:prod": "serverless deploy --stage prod",
+    "logs": "serverless logs -f api --tail",
+    "logs:prod": "serverless logs -f api --stage prod --tail",
+    "remove": "serverless remove",
+    "remove:prod": "serverless remove --stage prod",
+    "info": "serverless info",
+    "test": "python -m pytest tests/ -v"
+  },
+  "devDependencies": {
+    "serverless-python-requirements": "^6.1.0",
+    "serverless-dotenv-plugin": "^6.0.0"
+  },
+  "keywords": [
+    "serverless",
+    "flask",
+    "aws",
+    "lambda",
+    "api",
+    "food-analysis",
+    "ai"
+  ],
+  "author": "RejuvenAI Team",
+  "license": "MIT"
+}

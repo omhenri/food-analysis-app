@@ -1,0 +1,156 @@
+service: rejuvenai-flask-backend
+
+provider:
+  name: aws
+  runtime: python3.10
+  stage: ${opt:stage, 'dev'}
+  region: ${opt:region, 'us-east-1'}
+  architecture: arm64
+  profile: rejuvenai
+
+  # IAM role configuration
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - logs:CreateLogGroup
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+          Resource: "*"
+        - Effect: Allow
+          Action:
+            - dynamodb:GetItem
+            - dynamodb:PutItem
+            - dynamodb:UpdateItem
+            - dynamodb:Query
+            - dynamodb:Scan
+          Resource:
+            - "arn:aws:dynamodb:${self:provider.region}:${aws:accountId}:table/food-analysis-jobs"
+            - "arn:aws:dynamodb:${self:provider.region}:${aws:accountId}:table/food-analysis-jobs/index/*"
+        - Effect: Allow
+          Action:
+            - sqs:SendMessage
+            - sqs:ReceiveMessage
+            - sqs:DeleteMessage
+            - sqs:GetQueueAttributes
+          Resource:
+            - "arn:aws:sqs:${self:provider.region}:${aws:accountId}:food-analysis-jobs-queue"
+
+  # Environment variables
+  environment:
+    FLASK_ENV: ${self:provider.stage}
+    SECRET_KEY: ${env:SECRET_KEY, 'dev-secret-key-change-in-production'}
+    OPENROUTER_API_KEY: ${env:OPENROUTER_API_KEY, ''}
+    OPENROUTER_MODEL: ${env:OPENROUTER_MODEL, 'anthropic/claude-3-haiku'}
+    MAX_REQUESTS_PER_MINUTE: ${env:MAX_REQUESTS_PER_MINUTE, '10'}
+
+  # Lambda function configuration
+  timeout: 300  # 5 minutes for AI processing
+  memorySize: 1024  # 1GB RAM
+
+functions:
+  api:
+    handler: handler.handler
+    timeout: 30   # API Gateway max timeout
+    events:
+      - httpApi:
+          path: '/{proxy+}'
+          method: '*'
+    environment:
+      FLASK_ENV: ${self:provider.stage}
+
+  # Asynchronous food analysis processor
+  processFoodAnalysis:
+    handler: async_handler.process_food_analysis
+    timeout: 300   # 5 minutes for async processing
+    events:
+      - sqs:
+          arn:
+            Fn::GetAtt: [FoodAnalysisJobsQueue, Arn]
+          batchSize: 1
+    environment:
+      FLASK_ENV: ${self:provider.stage}
+      DYNAMODB_TABLE: food-analysis-jobs
+
+plugins:
+  - serverless-python-requirements
+  - serverless-dotenv-plugin
+
+custom:
+  pythonRequirements:
+    dockerizePip: true
+    pythonBin: python3
+    useDownloadCache: true
+    useStaticCache: true
+    slim: true
+    strip: false
+    noDeploy:
+      - pytest
+      - pytest-cov
+      - coverage
+
+package:
+  patterns:
+    - '!.git/**'
+    - '!.gitignore'
+    - '!README.md'
+    - '!venv/**'
+    - '!__pycache__/**'
+    - '!.pytest_cache/**'
+    - '!tests/**'
+    - '!*.pyc'
+    - '!.env'
+    - '!serverless.yml'
+    - '!serverless.json'
+    - '!deploy-to-aws.sh'
+    - '!debug-lambda.sh'
+    - '!create-aws-user.sh'
+    - '!AWS_DEPLOYMENT_GUIDE.md'
+    - '!OPENROUTER_SETUP.md'
+    - '!switch_to_openrouter.py'
+    - '!response.json'
+    - '!test-deployment.zip'
+    - '!test.zip'
+    - '!app.log'
+
+resources:
+  Resources:
+    FoodAnalysisJobsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: food-analysis-jobs
+        AttributeDefinitions:
+          - AttributeName: job_id
+            AttributeType: S
+          - AttributeName: status
+            AttributeType: S
+          - AttributeName: created_at
+            AttributeType: S
+        KeySchema:
+          - AttributeName: job_id
+            KeyType: HASH
+        GlobalSecondaryIndexes:
+          - IndexName: status-created_at-index
+            KeySchema:
+              - AttributeName: status
+                KeyType: HASH
+              - AttributeName: created_at
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+        BillingMode: PAY_PER_REQUEST
+
+    FoodAnalysisJobsQueue:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: food-analysis-jobs-queue
+        VisibilityTimeout: 360  # 6 minutes (longer than Lambda timeout)
+        MessageRetentionPeriod: 86400  # 24 hours
+
+# Custom domains (optional)
+# customDomain:
+#   domainName: api.rejuvenai.com
+#   basePath: ''
+#   stage: ${self:provider.stage}
+#   createRoute53Record: true

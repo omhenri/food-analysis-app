@@ -21,10 +21,10 @@ export class BackendAnalysisService {
     this.backendService.configure(baseUrl, timeout);
   }
 
-  // Analyze foods using backend service only
+  // Analyze foods using backend service with async processing
   public async analyzeFoods(foods: FoodItem[]): Promise<AnalysisResult[]> {
     try {
-      console.log('Analyzing foods via backend service...');
+      console.log('Analyzing foods via backend service (async)...');
 
       // Convert app's FoodItem format to backend format
       const backendFoods = foods.map(food => ({
@@ -35,18 +35,47 @@ export class BackendAnalysisService {
         unit: 'serving', // Default unit
       }));
 
-      // Make request to backend
-      const backendResponse = await this.backendService.analyzeFoods(backendFoods);
+      // Create async job
+      const jobResponse = await this.backendService.createFoodAnalysisJob(backendFoods);
 
-      if (!backendResponse.success) {
-        throw new Error(backendResponse.error || 'Backend analysis failed');
+      if (!jobResponse.success || !jobResponse.data) {
+        throw new Error(jobResponse.error || 'Failed to create analysis job');
       }
 
-      // Convert backend response to app format, passing original foods for portion calculation
-      const analysisResults = this.backendService.convertToAnalysisResults(backendResponse, backendFoods);
-      console.log('Analysis results:', analysisResults);
-      console.log('Backend analysis completed successfully');
-      return analysisResults;
+      const jobId = jobResponse.data.job_id;
+      console.log(`Created job ${jobId}, polling for results...`);
+
+      // Poll for results
+      const maxAttempts = 150; // 150 attempts * 2 seconds = 300 seconds max wait
+      const pollInterval = 2000; // 2 seconds
+
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        await new Promise<void>(resolve => setTimeout(resolve, pollInterval));
+
+        const statusResponse = await this.backendService.getJobStatus(jobId);
+
+        if (!statusResponse.success || !statusResponse.data) {
+          throw new Error(statusResponse.error || 'Failed to check job status');
+        }
+
+        const jobStatus = statusResponse.data;
+
+        if (jobStatus.status === 'completed' && jobStatus.result) {
+          // Convert backend response to app format
+          const mockBackendResponse = { success: true, data: jobStatus.result };
+          const analysisResults = this.backendService.convertToAnalysisResults(mockBackendResponse, backendFoods);
+          console.log('Async analysis completed successfully');
+          return analysisResults;
+        } else if (jobStatus.status === 'failed') {
+          throw new Error(jobStatus.error || 'Analysis job failed');
+        }
+
+        // Still processing, continue polling
+        console.log(`Job ${jobId} status: ${jobStatus.status}, attempt ${attempt + 1}/${maxAttempts}`);
+      }
+
+      throw new Error('Analysis timed out after 60 seconds');
+
     } catch (error) {
       console.error('Backend analysis failed:', error);
       throw new Error(`Analysis failed: ${error}`);

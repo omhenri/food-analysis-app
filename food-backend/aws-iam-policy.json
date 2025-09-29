@@ -1,0 +1,117 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "LambdaPermissions",
+            "Effect": "Allow",
+            "Action": [
+                "lambda:CreateFunction",
+                "lambda:UpdateFunctionCode",
+                "lambda:UpdateFunctionConfiguration",
+                "lambda:GetFunction",
+                "lambda:ListFunctions",
+                "lambda:AddPermission",
+                "lambda:RemovePermission"
+            ],
+            "Resource": [
+                "arn:aws:lambda:*:*:function:rejuvenai-backend",
+                "arn:aws:lambda:*:*:function:*"
+            ]
+        },
+        {
+            "Sid": "APIGatewayPermissions",
+            "Effect": "Allow",
+            "Action": [
+                "apigateway:GET",
+                "apigateway:POST",
+                "apigateway:PUT",
+                "apigateway:PATCH",
+                "apigateway:DELETE",
+                "apigateway:CreateRestApi",
+                "apigateway:GetRestApi",
+                "apigateway:GetRestApis",
+                "apigateway:CreateResource",
+                "apigateway:CreateMethod",
+                "apigateway:PutMethod",
+                "apigateway:PutIntegration",
+                "apigateway:PutMethodResponse",
+                "apigateway:PutIntegrationResponse",
+                "apigateway:CreateDeployment",
+                "apigateway:CreateApiKey",
+                "apigateway:CreateUsagePlan",
+                "apigateway:CreateUsagePlanKey"
+            ],
+            "Resource": [
+                "arn:aws:apigateway:*::/restapis/*",
+                "arn:aws:apigateway:*::/apikeys/*",
+                "arn:aws:apigateway:*::/usageplans/*"
+            ]
+        },
+        {
+            "Sid": "IAMPermissions",
+            "Effect": "Allow",
+            "Action": [
+                "iam:CreateRole",
+                "iam:GetRole",
+                "iam:PassRole",
+                "iam:AttachRolePolicy",
+                "iam:DetachRolePolicy",
+                "iam:PutRolePolicy",
+                "iam:DeleteRolePolicy",
+                "iam:ListAttachedRolePolicies",
+                "iam:ListRolePolicies"
+            ],
+            "Resource": [
+                "arn:aws:iam::*:role/rejuvenai-lambda-role",
+                "arn:aws:iam::*:role/*"
+            ]
+        },
+        {
+            "Sid": "SecretsManagerPermissions",
+            "Effect": "Allow",
+            "Action": [
+                "secretsmanager:CreateSecret",
+                "secretsmanager:UpdateSecret",
+                "secretsmanager:DescribeSecret",
+                "secretsmanager:GetSecretValue",
+                "secretsmanager:ListSecrets"
+            ],
+            "Resource": [
+                "arn:aws:secretsmanager:*:*:secret:rejuvenai-*",
+                "arn:aws:secretsmanager:*:*:secret:*"
+            ]
+        },
+        {
+            "Sid": "CloudWatchLogsPermissions",
+            "Effect": "Allow",
+            "Action": [
+                "logs:CreateLogGroup",
+                "logs:CreateLogStream",
+                "logs:PutLogEvents",
+                "logs:DescribeLogGroups",
+                "logs:DescribeLogStreams"
+            ],
+            "Resource": [
+                "arn:aws:logs:*:*:log-group:/aws/lambda/rejuvenai-backend:*",
+                "arn:aws:logs:*:*:log-group:*"
+            ]
+        },
+        {
+            "Sid": "STSPermissions",
+            "Effect": "Allow",
+            "Action": [
+                "sts:GetCallerIdentity"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "CloudFormationPermissions",
+            "Effect": "Allow",
+            "Action": [
+                "cloudformation:DescribeStacks",
+                "cloudformation:ListStacks"
+            ],
+            "Resource": "*"
+        }
+    ]
+}

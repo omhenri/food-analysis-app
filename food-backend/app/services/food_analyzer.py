@@ -1532,15 +1532,7 @@ IMPORTANT NOTES:
         Use the comprehensive nutritional analysis prompt to analyze foods
         """
         # Comprehensive prompt from foodanalyze.txt with enhanced JSON completion requirements
-        prompt = f"""You are a nutrition analyzer. You MUST output COMPLETE, VALID JSON only.
-
-CRITICAL JSON REQUIREMENTS:
-- Output ONLY a valid JSON array - no text before or after
-- Count your braces: every {{ must have a matching }}
-- Count your brackets: every [ must have a matching ]
-- Ensure ALL objects are properly closed
-- If response would be too long, reduce nutrient count but maintain valid structure
-- Validate your JSON mentally before finishing: can it be parsed?
+        prompt = f"""You are a nutrition analyzer.
 
 Goal: For each food item, output a **strict JSON** record for a **single-person serving**, with ingredients, portion %, and a comprehensive set of nutrients (macros, fatty acids, amino acids, minerals, vitamins, bioactives, organic/other compounds). Every nutrient value must be in **grams**, with **per-ingredient** contributions and a **nutrient impact** tag (positive | neutral | negative). Output **JSON only** (no prose, no markdown).
 
@@ -1561,11 +1553,10 @@ REQUIREMENTS
    - total_g (grams for nutrients, kcal for energy_kcal, always numeric)  
    - by_ingredient: list of {{ingredient, grams_or_kcal, percent_of_chemical}} that sums to the nutrient's total_g.  
 4. Units: Use grams for all nutrients EXCEPT energy_kcal which should be in kilocalories (kcal). Convert mg → g (e.g., 730 mg = 0.73; 120 µg = 0.00012).  
-5. Output only a JSON array, no prose, no markdown, no comments.
-6. **CRITICAL**: Use ONLY singular forms of nutrients. DO NOT use plural forms (e.g., use "carbohydrate_g", not "carbohydrates_g"). Always include energy_kcal (calories) as a key nutrient.
+5. **CRITICAL**: Use ONLY singular forms of nutrients. DO NOT use plural forms (e.g., use "carbohydrate_g", not "carbohydrates_g"). Always include energy_kcal (calories) as a key nutrient.
 
 OUTPUT SCHEMA
-Return a JSON array of objects, each with exactly these keys:
+Return a valid JSON array of objects, each with exactly these keys:
 [
   {{
     "food_name": "string",
@@ -1593,20 +1584,20 @@ Return a JSON array of objects, each with exactly these keys:
   }}
 ]
 
-VALIDATION
-- Sum(ingredients.portion_percent) = 100 ± 0.1.
-- For each nutrient: Sum(by_ingredient.grams) = total_g ± 0.1, and Sum(by_ingredient.percent_of_chemical) = 100 ± 0.1 (unless total_g == 0, then by_ingredient MUST be []).
-- All numeric fields are numbers (no strings or units). All nutrient amounts in grams EXCEPT energy_kcal in kilocalories. Convert mg/µg to grams before reporting.
-- Use singular forms of nutrients only - no plural forms allowed (e.g., use "carbohydrate_g", not "carbohydrates_g").
-
-CRITICAL: Before finishing your response, validate that your JSON is complete and parseable:
+CRITICAL JSON REQUIREMENTS:
 1. Count opening and closing braces: every {{ must have a }}
 2. Count opening and closing brackets: every [ must have a ]
 3. Ensure no trailing commas before closing braces/brackets
 4. Test that the JSON can be parsed successfully
 5. If the response would be too long, prioritize core nutrients (energy_kcal, protein_g, carbohydrate_g, total_fat_g, fiber_g, vitamin_c_g, vitamin_a_rae_g, calcium_g, iron_g, potassium_g) and omit less critical ones, but maintain valid structure
 
-Output ONLY the final JSON array; no explanations, no markdown, no additional text."""
+VALIDATION
+- Sum(ingredients.portion_percent) = 100 ± 0.1.
+- For each nutrient: Sum(by_ingredient.grams) = total_g ± 0.1, and Sum(by_ingredient.percent_of_chemical) = 100 ± 0.1 (unless total_g == 0, then by_ingredient MUST be []).
+- All numeric fields are numbers (no strings or units). All nutrient amounts in grams EXCEPT energy_kcal in kilocalories. Convert mg/µg to grams before reporting.
+- Use singular forms of nutrients only - no plural forms allowed (e.g., use "carbohydrate_g", not "carbohydrates_g").
+- Before finishing your response, validate that your JSON is complete and parseable.
+"""
 
         try:
             response = self.client.chat.completions.create(

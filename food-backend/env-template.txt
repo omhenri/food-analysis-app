@@ -1,0 +1,28 @@
+# Rejuvenai Backend Environment Variables Template
+# Copy this file to .env and fill in your actual values
+
+# Flask Configuration
+FLASK_ENV=development
+SECRET_KEY=your-secret-key-here
+
+# OpenAI/OpenRouter Configuration
+OPENAI_API_KEY=your-openrouter-api-key-here
+OPENAI_MODEL=gpt-4
+
+# Rate Limiting
+MAX_REQUESTS_PER_MINUTE=10
+
+# Logging
+LOG_LEVEL=INFO
+LOG_FILE=app.log
+
+# AWS Configuration (for serverless deployment)
+AWS_REGION=us-east-1
+LAMBDA_FUNCTION_NAME=rejuvenai-backend
+API_GATEWAY_STAGE=prod
+
+# Database Configuration (if using SQLite or other DB)
+DATABASE_URL=sqlite:///rejuvenai.db
+
+# CORS Settings
+CORS_ORIGINS=*

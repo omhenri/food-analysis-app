@@ -1,5 +1,6 @@
 from flask import Blueprint, request, jsonify, current_app
 import logging
+from decimal import Decimal
 from app.services.food_analyzer import FoodAnalyzer
 from app.utils.validators import validate_food_name
 from app.utils.rate_limiter import RateLimiter
@@ -11,7 +12,27 @@ api_bp = Blueprint('api', __name__)
 food_analyzer = FoodAnalyzer()
 rate_limiter = RateLimiter()
 
+# Import job manager for async processing
+try:
+    from app.services.job_manager import JobManager
+    job_manager = JobManager()
+except ImportError:
+    job_manager = None
+
 logger = logging.getLogger(__name__)
+
+def convert_decimals_to_floats(obj):
+    """
+    Recursively convert Decimal values to float for JSON serialization
+    """
+    if isinstance(obj, Decimal):
+        return float(obj)
+    elif isinstance(obj, dict):
+        return {key: convert_decimals_to_floats(value) for key, value in obj.items()}
+    elif isinstance(obj, list):
+        return [convert_decimals_to_floats(item) for item in obj]
+    else:
+        return obj
 
 @api_bp.route('/analyze-food', methods=['POST'])
 def analyze_food():
@@ -488,6 +509,167 @@ def get_neutralization_recommendations():
 
     except Exception as e:
         logger.error(f"Error getting neutralization recommendations: {str(e)}", exc_info=True)
+        return jsonify({
+            'error': 'Internal server error. Please try again later.',
+            'code': 'INTERNAL_ERROR'
+        }), 500
+
+
+@api_bp.route('/analyze-food-async', methods=['POST'])
+def analyze_food_async():
+    """
+    Start asynchronous food analysis job
+    Expects: [{"food_name": "string", "meal_type": "breakfast|lunch|dinner|snack"}, ...]
+    Returns: {"job_id": "string", "status": "queued", "message": "Job queued for processing"}
+    """
+    try:
+        # Get client IP for rate limiting
+        client_ip = request.remote_addr or request.environ.get('HTTP_X_FORWARDED_FOR', 'unknown')
+
+        # Check rate limit
+        if not rate_limiter.is_allowed(client_ip):
+            logger.warning(f"Rate limit exceeded for IP: {client_ip}")
+            return jsonify({
+                'error': 'Rate limit exceeded. Please try again later.',
+                'code': 'RATE_LIMIT_EXCEEDED'
+            }), 429
+
+        if not job_manager:
+            return jsonify({
+                'error': 'Asynchronous processing not available',
+                'code': 'ASYNC_NOT_AVAILABLE'
+            }), 503
+
+        # Get and validate input
+        data = request.get_json()
+
+        if not data:
+            return jsonify({
+                'error': 'Missing request data',
+                'code': 'MISSING_DATA'
+            }), 400
+
+        # Expect an array of food objects
+        if not isinstance(data, list):
+            return jsonify({
+                'error': 'Input must be an array of food objects',
+                'code': 'INVALID_INPUT_FORMAT'
+            }), 400
+
+        if len(data) == 0:
+            return jsonify({
+                'error': 'Food array cannot be empty',
+                'code': 'EMPTY_FOOD_ARRAY'
+            }), 400
+
+        # Validate each food item
+        validated_foods = []
+        for i, food_item in enumerate(data):
+            if not isinstance(food_item, dict):
+                return jsonify({
+                    'error': f'Food item at index {i} must be an object',
+                    'code': 'INVALID_FOOD_ITEM'
+                }), 400
+
+            if 'food_name' not in food_item:
+                return jsonify({
+                    'error': f'Missing food_name in food item at index {i}',
+                    'code': 'MISSING_FOOD_NAME'
+                }), 400
+
+            if 'meal_type' not in food_item:
+                return jsonify({
+                    'error': f'Missing meal_type in food item at index {i}',
+                    'code': 'MISSING_MEAL_TYPE'
+                }), 400
+
+            food_name = food_item['food_name'].strip()
+            meal_type = food_item['meal_type'].strip()
+
+            # Validate food name
+            validation_result = validate_food_name(food_name)
+            if not validation_result['valid']:
+                return jsonify({
+                    'error': f'Invalid food_name at index {i}: {validation_result["error"]}',
+                    'code': 'INVALID_FOOD_NAME'
+                }), 400
+
+            # Validate meal type
+            valid_meal_types = ['breakfast', 'lunch', 'dinner', 'snack']
+            if meal_type not in valid_meal_types:
+                return jsonify({
+                    'error': f'Invalid meal_type at index {i}. Must be one of: {", ".join(valid_meal_types)}',
+                    'code': 'INVALID_MEAL_TYPE'
+                }), 400
+
+            validated_foods.append({
+                'food_name': food_name,
+                'meal_type': meal_type
+            })
+
+        # Log the request
+        logger.info(f"Creating async job for {len(validated_foods)} foods from IP: {client_ip}")
+
+        # Create async job
+        job_id = job_manager.create_job(validated_foods)
+
+        # Update rate limiter
+        rate_limiter.record_request(client_ip)
+
+        # Return job ID immediately
+        return jsonify({
+            'job_id': job_id,
+            'status': 'queued',
+            'message': 'Job queued for processing. Use /job-status/{job_id} to check progress.',
+            'estimated_time': '30-60 seconds'
+        }), 202
+
+    except Exception as e:
+        logger.error(f"Error creating async food analysis job: {str(e)}", exc_info=True)
+        return jsonify({
+            'error': 'Internal server error. Please try again later.',
+            'code': 'INTERNAL_ERROR'
+        }), 500
+
+
+@api_bp.route('/job-status/<job_id>', methods=['GET'])
+def get_job_status(job_id):
+    """
+    Get the status of an asynchronous job
+    Returns: {"job_id": "string", "status": "queued|processing|completed|failed", "result": {...}, "error": "string"}
+    """
+    try:
+        if not job_manager:
+            return jsonify({
+                'error': 'Job status checking not available',
+                'code': 'JOB_STATUS_NOT_AVAILABLE'
+            }), 503
+
+        job = job_manager.get_job_status(job_id)
+
+        if not job:
+            return jsonify({
+                'error': 'Job not found',
+                'code': 'JOB_NOT_FOUND'
+            }), 404
+
+        # Return job status
+        response = {
+            'job_id': job['job_id'],
+            'status': job['status'],
+            'created_at': job.get('created_at'),
+            'updated_at': job.get('updated_at')
+        }
+
+        if job['status'] == 'completed' and 'result' in job:
+            response['result'] = convert_decimals_to_floats(job['result'])
+        elif job['status'] == 'failed' and 'error' in job:
+            response['error'] = job['error']
+
+        return jsonify(response), 200
+
+    except Exception as e:
+        logger.error(f"Error getting job status for {job_id}: {str(e)}", exc_info=True)
         return jsonify({
             'error': 'Internal server error. Please try again later.',
             'code': 'INTERNAL_ERROR'

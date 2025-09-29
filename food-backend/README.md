@@ -275,6 +275,49 @@ python app.py
 python -m pytest tests/ -v
 ```
 
+## 🚀 Deployment
+
+### Option 1: Serverless Framework (Recommended)
+
+The recommended deployment method uses the Serverless Framework for better resource management and easier scaling.
+
+**Prerequisites:**
+- Node.js and npm
+- AWS CLI configured
+- Serverless Framework: `npm install -g serverless`
+
+**Deploy:**
+```bash
+# Install serverless plugins
+npm install
+
+# Deploy to development
+./deploy-serverless.sh
+
+# Deploy to production
+./deploy-serverless.sh --stage prod
+```
+
+**Features:**
+- Automatic API Gateway setup
+- Environment variable management
+- CloudWatch logging integration
+- Stage-based deployments (dev/prod)
+- Proper IAM role management
+
+See [SERVERLESS_DEPLOYMENT.md](SERVERLESS_DEPLOYMENT.md) for detailed instructions.
+
+### Option 2: Custom Bash Script
+
+The original deployment method using a custom bash script.
+
+```bash
+# Deploy using bash script
+./deploy-to-aws.sh
+```
+
+See [AWS_DEPLOYMENT_GUIDE.md](AWS_DEPLOYMENT_GUIDE.md) for detailed instructions.
+
 ## 📄 License
 
 This project is part of the AWS Hackathon 2025 submission.

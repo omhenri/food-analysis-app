@@ -27,6 +27,17 @@ export interface BackendResponse<T> {
   code?: string;
 }
 
+export interface AsyncJobResponse {
+  job_id: string;
+  status: 'queued' | 'processing' | 'completed' | 'failed';
+  message?: string;
+  estimated_time?: string;
+  result?: BackendAnalysisData[];
+  error?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface BackendAnalysisData {
   food_name: string;
   meal_type: string;
@@ -210,6 +221,115 @@ export class BackendApiService {
     }
   }
 
+  // Create asynchronous food analysis job
+  public async createFoodAnalysisJob(foods: BackendFoodItem[]): Promise<BackendResponse<AsyncJobResponse>> {
+    try {
+      console.log('Creating asynchronous food analysis job:', foods);
+
+      // Convert foods to backend format (array of food objects)
+      const backendFoods = foods.map(food => ({
+        food_name: food.name,
+        meal_type: food.mealType,
+      }));
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout for job creation
+
+      const response = await fetch(`${this.baseUrl}/api/analyze-food-async`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(backendFoods),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new BackendApiError(
+          response.status,
+          errorData.code || 'HTTP_ERROR',
+          errorData.error || `HTTP ${response.status}: ${response.statusText}`
+        );
+      }
+
+      const data: AsyncJobResponse = await response.json();
+      console.log('Async job created:', data);
+
+      return {
+        success: true,
+        data,
+      };
+
+    } catch (error) {
+      console.error('Failed to create async job:', error);
+
+      if (error instanceof BackendApiError) {
+        return {
+          success: false,
+          error: error.message,
+          code: error.errorCode,
+        };
+      }
+
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error occurred',
+      };
+    }
+  }
+
+  // Check status of asynchronous job
+  public async getJobStatus(jobId: string): Promise<BackendResponse<AsyncJobResponse>> {
+    try {
+      console.log('Checking job status:', jobId);
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout for status check
+
+      const response = await fetch(`${this.baseUrl}/api/job-status/${jobId}`, {
+        method: 'GET',
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new BackendApiError(
+          response.status,
+          errorData.code || 'HTTP_ERROR',
+          errorData.error || `HTTP ${response.status}: ${response.statusText}`
+        );
+      }
+
+      const data: AsyncJobResponse = await response.json();
+      console.log('Job status:', data);
+
+      return {
+        success: true,
+        data,
+      };
+
+    } catch (error) {
+      console.error('Failed to get job status:', error);
+
+      if (error instanceof BackendApiError) {
+        return {
+          success: false,
+          error: error.message,
+          code: error.errorCode,
+        };
+      }
+
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error occurred',
+      };
+    }
+  }
 
 
   // Get recommended intake from backend
