@@ -1,0 +1,128 @@
+# Project-wide ignores
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+*~
+
+# IDEs and editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*.sublime-project
+*.sublime-workspace
+*.tmp
+*.temp
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+.env.development
+.env.test
+.env.production
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.backup
+.cache/
+
+# Sensitive files
+secrets.json
+config.local.json
+*.key
+*.pem
+*.crt
+*.p12
+*.pfx
+google-services.json
+GoogleService-Info.plist
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
+*.zip
+*.tar.gz
+
+# Documentation generated files
+docs/_build/
+*.pdf
+*.docx
+
+# Test coverage
+.coverage
+coverage.xml
+htmlcov/
+.nyc_output
+
+# AWS
+.aws/
+serverless-state.json
+.serverless/
+.terraform/
+terraform.tfstate*
+terraform.tfvars
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Screenshots and media
+screenshots/
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.mp4
+*.mov
+
+# Debug files
+debug_*.js
+debug_*.py
+*.dump
+*.stackdump
+
+# Lock files (keep in subdirectories)
+# package-lock.json - kept in subprojects
+# yarn.lock - kept in subprojects
+# Pipfile.lock - kept in subprojects
+# Gemfile.lock - kept in subprojects
+
+# CI/CD
+.github/workflows/*.yml
+.github/workflows/*.yaml
+!github/workflows/*.template.*
+
+# Release artifacts
+release/
+artifacts/
+
+# Local development
+.local/
+development/
+test-results/
+
+# Backup files
+*.orig
+*.rej
+
+# Git
+.git/
+!.gitignore
