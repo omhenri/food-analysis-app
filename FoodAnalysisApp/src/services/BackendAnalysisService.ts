@@ -1,5 +1,5 @@
 import { FoodItem, AnalysisResult, ChemicalSubstance, RecommendedIntake } from '../models/types';
-import { BackendApiService } from './BackendApiService';
+import { BackendApiService, BackendNeutralizationRecommendations } from './BackendApiService';
 
 export class BackendAnalysisService {
   private static instance: BackendAnalysisService;
@@ -83,21 +83,99 @@ export class BackendAnalysisService {
   }
 
   // Get recommended daily intake from backend
+  // Get recommended intake from backend (async)
   public async getRecommendedIntake(nutrientsConsumed?: Array<{name: string, total_amount: number, unit: string}>, age?: string, gender?: string): Promise<RecommendedIntake> {
     try {
-      console.log('Getting recommended intake from backend');
+      console.log('Getting recommended intake from backend (async)');
 
-      const backendResponse = await this.backendService.getRecommendedIntake(nutrientsConsumed || [], age, gender);
+      // Create async job
+      const jobResponse = await this.backendService.createRecommendedIntakeJob(nutrientsConsumed || [], age, gender);
 
-      if (backendResponse.success && backendResponse.data) {
-        console.log('Recommended intake retrieved successfully');
-        return backendResponse.data.recommended_intakes;
-      } else {
-        throw new Error(backendResponse.error || 'Failed to get recommended intake');
+      if (!jobResponse.success || !jobResponse.data) {
+        throw new Error(jobResponse.error || 'Failed to create recommended intake job');
       }
+
+      const jobId = jobResponse.data.job_id;
+      console.log(`Created recommended intake job ${jobId}, polling for results...`);
+
+      // Poll for results
+      const maxAttempts = 150;
+      const pollInterval = 2000;
+
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        await new Promise<void>(resolve => setTimeout(resolve, pollInterval));
+
+        const statusResponse = await this.backendService.getJobStatus(jobId);
+
+        if (!statusResponse.success || !statusResponse.data) {
+          throw new Error(statusResponse.error || 'Failed to check recommended intake job status');
+        }
+
+        const jobStatus = statusResponse.data;
+
+        if (jobStatus.status === 'completed' && jobStatus.result) {
+          console.log('Recommended intake completed successfully');
+          return (jobStatus.result as any).recommended_intakes;
+        } else if (jobStatus.status === 'failed') {
+          throw new Error(jobStatus.error || 'Recommended intake job failed');
+        }
+
+        console.log(`Recommended intake job ${jobId} status: ${jobStatus.status}, attempt ${attempt + 1}/${maxAttempts}`);
+      }
+
+      throw new Error('Recommended intake timed out after 60 seconds');
+
     } catch (error) {
       console.error('Backend recommended intake failed:', error);
       throw new Error(`Failed to get recommended intake: ${error}`);
+    }
+  }
+
+  // Get neutralization recommendations from backend (async)
+  public async getNeutralizationRecommendations(overdosedSubstances: string[]): Promise<BackendNeutralizationRecommendations> {
+    try {
+      console.log('Getting neutralization recommendations from backend (async)');
+
+      // Create async job
+      const jobResponse = await this.backendService.createNeutralizationRecommendationsJob(overdosedSubstances);
+
+      if (!jobResponse.success || !jobResponse.data) {
+        throw new Error(jobResponse.error || 'Failed to create neutralization recommendations job');
+      }
+
+      const jobId = jobResponse.data.job_id;
+      console.log(`Created neutralization recommendations job ${jobId}, polling for results...`);
+
+      // Poll for results
+      const maxAttempts = 150;
+      const pollInterval = 2000;
+
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        await new Promise<void>(resolve => setTimeout(resolve, pollInterval));
+
+        const statusResponse = await this.backendService.getJobStatus(jobId);
+
+        if (!statusResponse.success || !statusResponse.data) {
+          throw new Error(statusResponse.error || 'Failed to check neutralization recommendations job status');
+        }
+
+        const jobStatus = statusResponse.data;
+
+        if (jobStatus.status === 'completed' && jobStatus.result) {
+          console.log('Neutralization recommendations completed successfully');
+          return jobStatus.result as any as BackendNeutralizationRecommendations;
+        } else if (jobStatus.status === 'failed') {
+          throw new Error(jobStatus.error || 'Neutralization recommendations job failed');
+        }
+
+        console.log(`Neutralization recommendations job ${jobId} status: ${jobStatus.status}, attempt ${attempt + 1}/${maxAttempts}`);
+      }
+
+      throw new Error('Neutralization recommendations timed out after 60 seconds');
+
+    } catch (error) {
+      console.error('Backend neutralization recommendations failed:', error);
+      throw new Error(`Failed to get neutralization recommendations: ${error}`);
     }
   }
 

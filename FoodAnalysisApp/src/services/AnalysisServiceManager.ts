@@ -70,15 +70,7 @@ export class AnalysisServiceManager {
     if (this.config.useMockService) {
       return this.mockService.getNeutralizationRecommendations(overdosedSubstances);
     } else {
-      // Use BackendApiService for neutralization recommendations
-      const backendApiService = require('./BackendApiService').BackendApiService.getInstance();
-      const response = await backendApiService.getNeutralizationRecommendations(overdosedSubstances);
-
-      if (response.success && response.data) {
-        return response.data;
-      } else {
-        throw new Error(response.error || 'Failed to get neutralization recommendations');
-      }
+      return this.aiService.getNeutralizationRecommendations(overdosedSubstances);
     }
   }
 

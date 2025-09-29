@@ -331,6 +331,65 @@ export class BackendApiService {
     }
   }
 
+  // Create asynchronous recommended intake job
+  public async createRecommendedIntakeJob(nutrientsConsumed: Array<{name: string, total_amount: number, unit: string}>, age?: string, gender?: string): Promise<BackendResponse<AsyncJobResponse>> {
+    try {
+      console.log('Creating asynchronous recommended intake job:', nutrientsConsumed);
+
+      const requestData = {
+        nutrients_consumed: nutrientsConsumed,
+        age_group: age || '18-29',
+        gender: gender || 'general'
+      };
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout for job creation
+
+      const response = await fetch(`${this.baseUrl}/api/recommended-intake-async`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestData),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new BackendApiError(
+          response.status,
+          errorData.code || 'HTTP_ERROR',
+          errorData.error || `HTTP ${response.status}: ${response.statusText}`
+        );
+      }
+
+      const data: AsyncJobResponse = await response.json();
+      console.log('Async recommended intake job created:', data);
+
+      return {
+        success: true,
+        data,
+      };
+
+    } catch (error) {
+      console.error('Failed to create async recommended intake job:', error);
+
+      if (error instanceof BackendApiError) {
+        return {
+          success: false,
+          error: error.message,
+          code: error.errorCode,
+        };
+      }
+
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error occurred',
+      };
+    }
+  }
 
   // Get recommended intake from backend
   public async getRecommendedIntake(nutrientsConsumed: Array<{name: string, total_amount: number, unit: string}>, age?: string, gender?: string): Promise<BackendResponse<BackendRecommendedIntake>> {
@@ -603,6 +662,64 @@ export class BackendApiService {
 
     } catch (error) {
       console.error('Failed to get weekly recommended intake:', error);
+
+      if (error instanceof BackendApiError) {
+        return {
+          success: false,
+          error: error.message,
+          code: error.errorCode,
+        };
+      }
+
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error occurred',
+      };
+    }
+  }
+
+  // Create asynchronous neutralization recommendations job
+  public async createNeutralizationRecommendationsJob(overdosedSubstances: string[]): Promise<BackendResponse<AsyncJobResponse>> {
+    try {
+      console.log('Creating asynchronous neutralization recommendations job');
+
+      const requestData = {
+        overdosed_substances: overdosedSubstances
+      };
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
+
+      const response = await fetch(`${this.baseUrl}/api/neutralization-recommendations-async`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestData),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new BackendApiError(
+          response.status,
+          errorData.code || 'HTTP_ERROR',
+          errorData.error || `HTTP ${response.status}: ${response.statusText}`
+        );
+      }
+
+      const data: AsyncJobResponse = await response.json();
+      console.log('Async neutralization recommendations job created:', data);
+
+      return {
+        success: true,
+        data,
+      };
+
+    } catch (error) {
+      console.error('Failed to create async neutralization recommendations job:', error);
 
       if (error instanceof BackendApiError) {
         return {

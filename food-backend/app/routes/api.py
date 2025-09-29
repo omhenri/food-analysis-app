@@ -286,6 +286,159 @@ def get_recommended_intake():
         }), 500
 
 
+@api_bp.route('/recommended-intake-async', methods=['POST'])
+def get_recommended_intake_async():
+    """
+    Start asynchronous recommended intake analysis job
+    Expects: {"nutrients_consumed": [{"name": "protein", "total_amount": 75.2, "unit": "grams"}, ...], "age_group": "18-29", "gender": "general"}
+    Returns: {"job_id": "string", "status": "queued", "message": "Job queued for processing"}
+    """
+    try:
+        # Get client IP for rate limiting
+        client_ip = request.remote_addr or request.environ.get('HTTP_X_FORWARDED_FOR', 'unknown')
+
+        # Check rate limit
+        if not rate_limiter.is_allowed(client_ip):
+            logger.warning(f"Rate limit exceeded for IP: {client_ip}")
+            return jsonify({
+                'error': 'Rate limit exceeded. Please try again later.',
+                'code': 'RATE_LIMIT_EXCEEDED'
+            }), 429
+
+        if not job_manager:
+            return jsonify({
+                'error': 'Asynchronous processing not available',
+                'code': 'ASYNC_NOT_AVAILABLE'
+            }), 503
+
+        # Get and validate input
+        data = request.get_json()
+
+        if not data:
+            return jsonify({
+                'error': 'Missing request data',
+                'code': 'MISSING_DATA'
+            }), 400
+
+        # Validate required fields
+        if 'nutrients_consumed' not in data:
+            return jsonify({
+                'error': 'Missing nutrients_consumed field',
+                'code': 'MISSING_NUTRIENTS_CONSUMED'
+            }), 400
+
+        nutrients_consumed = data['nutrients_consumed']
+        if not isinstance(nutrients_consumed, list):
+            return jsonify({
+                'error': 'nutrients_consumed must be an array',
+                'code': 'INVALID_NUTRIENTS_FORMAT'
+            }), 400
+
+        if len(nutrients_consumed) == 0:
+            return jsonify({
+                'error': 'nutrients_consumed array cannot be empty',
+                'code': 'EMPTY_NUTRIENTS_ARRAY'
+            }), 400
+
+        # Validate each nutrient item
+        validated_nutrients = []
+        for i, nutrient in enumerate(nutrients_consumed):
+            if not isinstance(nutrient, dict):
+                return jsonify({
+                    'error': f'Nutrient item at index {i} must be an object',
+                    'code': 'INVALID_NUTRIENT_ITEM'
+                }), 400
+
+            required_fields = ['name', 'total_amount']
+            for field in required_fields:
+                if field not in nutrient:
+                    return jsonify({
+                        'error': f'Missing {field} in nutrient item at index {i}',
+                        'code': 'MISSING_NUTRIENT_FIELD'
+                    }), 400
+
+            # Validate nutrient name (should be a string)
+            if not isinstance(nutrient['name'], str) or not nutrient['name'].strip():
+                return jsonify({
+                    'error': f'Invalid nutrient name at index {i}',
+                    'code': 'INVALID_NUTRIENT_NAME'
+                }), 400
+
+            # Validate total_amount (should be a number)
+            try:
+                total_amount = float(nutrient['total_amount'])
+                if total_amount < 0:
+                    return jsonify({
+                        'error': f'Nutrient amount must be non-negative at index {i}',
+                        'code': 'INVALID_NUTRIENT_AMOUNT'
+                    }), 400
+            except (ValueError, TypeError):
+                return jsonify({
+                    'error': f'Invalid nutrient amount at index {i}',
+                    'code': 'INVALID_NUTRIENT_AMOUNT'
+                }), 400
+
+            # Validate unit (optional, defaults to "grams")
+            unit = nutrient.get('unit', 'grams')
+            if not isinstance(unit, str):
+                unit = 'grams'
+
+            validated_nutrients.append({
+                'name': nutrient['name'].strip(),
+                'total_amount': total_amount,
+                'unit': unit
+            })
+
+        # Get optional parameters
+        age_group = data.get('age_group', '18-29')
+        gender = data.get('gender', 'general')
+
+        # Validate age_group and gender
+        valid_age_groups = ['0-18', '19-40', '18-29', '>40']
+        if age_group not in valid_age_groups:
+            return jsonify({
+                'error': f'Invalid age_group. Must be one of: {", ".join(valid_age_groups)}',
+                'code': 'INVALID_AGE_GROUP'
+            }), 400
+
+        valid_genders = ['male', 'female', 'general']
+        if gender not in valid_genders:
+            return jsonify({
+                'error': f'Invalid gender. Must be one of: {", ".join(valid_genders)}',
+                'code': 'INVALID_GENDER'
+            }), 400
+
+        # Log the request
+        logger.info(f"Creating async job for recommended intake analysis of {len(validated_nutrients)} nutrients from IP: {client_ip}")
+
+        # Create async job with proper job_data structure
+        job_data = {
+            'job_type': 'recommended_intake',
+            'nutrients_consumed': validated_nutrients,
+            'age_group': age_group,
+            'gender': gender
+        }
+        job_id = job_manager.create_job(job_data)
+
+        # Update rate limiter
+        rate_limiter.record_request(client_ip)
+
+        # Return job ID immediately
+        return jsonify({
+            'job_id': job_id,
+            'status': 'queued',
+            'message': 'Job queued for processing. Use /job-status/{job_id} to check progress.',
+            'estimated_time': '30-60 seconds'
+        }), 202
+
+    except Exception as e:
+        logger.error(f"Error creating async recommended intake job: {str(e)}", exc_info=True)
+        return jsonify({
+            'error': 'Internal server error. Please try again later.',
+            'code': 'INTERNAL_ERROR'
+        }), 500
+
+
 @api_bp.route('/recommended-intake-for-week', methods=['POST'])
 def get_weekly_recommended_intake():
     """
@@ -515,6 +668,99 @@ def get_neutralization_recommendations():
         }), 500
 
 
+@api_bp.route('/neutralization-recommendations-async', methods=['POST'])
+def get_neutralization_recommendations_async():
+    """
+    Get neutralization recommendations asynchronously
+    Expects: {"overdosed_substances": ["sodium", "sugar", ...]}
+    Returns: {"job_id": "string", "status": "queued", "message": "Job queued for processing"}
+    """
+    try:
+        # Get client IP for rate limiting
+        client_ip = request.remote_addr or request.environ.get('HTTP_X_FORWARDED_FOR', 'unknown')
+
+        # Check rate limit
+        if not rate_limiter.is_allowed(client_ip):
+            logger.warning(f"Rate limit exceeded for IP: {client_ip}")
+            return jsonify({
+                'error': 'Rate limit exceeded. Please try again later.',
+                'code': 'RATE_LIMIT_EXCEEDED'
+            }), 429
+
+        if not job_manager:
+            return jsonify({
+                'error': 'Asynchronous processing not available',
+                'code': 'ASYNC_NOT_AVAILABLE'
+            }), 503
+
+        # Get and validate input
+        data = request.get_json()
+
+        if not data:
+            return jsonify({
+                'error': 'Missing request data',
+                'code': 'MISSING_DATA'
+            }), 400
+
+        # Validate required fields
+        if 'overdosed_substances' not in data:
+            return jsonify({
+                'error': 'Missing overdosed_substances field',
+                'code': 'MISSING_OVERDOSED_SUBSTANCES'
+            }), 400
+
+        overdosed_substances = data['overdosed_substances']
+        if not isinstance(overdosed_substances, list):
+            return jsonify({
+                'error': 'overdosed_substances must be an array',
+                'code': 'INVALID_OVERDOSED_SUBSTANCES_FORMAT'
+            }), 400
+
+        if len(overdosed_substances) == 0:
+            return jsonify({
+                'error': 'overdosed_substances array cannot be empty',
+                'code': 'EMPTY_OVERDOSED_SUBSTANCES_ARRAY'
+            }), 400
+
+        # Validate each substance (should be a non-empty string)
+        validated_substances = []
+        for i, substance in enumerate(overdosed_substances):
+            if not isinstance(substance, str) or not substance.strip():
+                return jsonify({
+                    'error': f'Invalid substance name at index {i}',
+                    'code': 'INVALID_SUBSTANCE_NAME'
+                }), 400
+            validated_substances.append(substance.strip())
+
+        # Log the request
+        logger.info(f"Creating async neutralization recommendations job for {len(validated_substances)} substances from IP: {client_ip}")
+
+        # Create async job with job type
+        job_data = {
+            'job_type': 'neutralization_recommendations',
+            'overdosed_substances': validated_substances
+        }
+        job_id = job_manager.create_job(job_data)
+
+        # Update rate limiter
+        rate_limiter.record_request(client_ip)
+
+        # Return job ID immediately
+        return jsonify({
+            'job_id': job_id,
+            'status': 'queued',
+            'message': 'Job queued for processing. Use /job-status/{job_id} to check progress.',
+            'estimated_time': '30-60 seconds'
+        }), 202
+
+    except Exception as e:
+        logger.error(f"Error creating async neutralization recommendations job: {str(e)}", exc_info=True)
+        return jsonify({
+            'error': 'Internal server error. Please try again later.',
+            'code': 'INTERNAL_ERROR'
+        }), 500
+
+
 @api_bp.route('/analyze-food-async', methods=['POST'])
 def analyze_food_async():
     """
@@ -610,8 +856,12 @@ def analyze_food_async():
         # Log the request
         logger.info(f"Creating async job for {len(validated_foods)} foods from IP: {client_ip}")
 
-        # Create async job
-        job_id = job_manager.create_job(validated_foods)
+        # Create async job with proper job_data structure
+        job_data = {
+            'job_type': 'food_analysis',
+            'foods': validated_foods
+        }
+        job_id = job_manager.create_job(job_data)
 
         # Update rate limiter
         rate_limiter.record_request(client_ip)

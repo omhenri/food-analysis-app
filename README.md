@@ -255,8 +255,8 @@ aws configure
 ### Claude-3 Powered Analysis
 
 **Technology Stack:**
-- **Model**: Claude-3-Haiku via OpenRouter
-- **Cost**: 98% cheaper than GPT-4 ($0.0015 vs $0.09 per 1K tokens)
+- **Model**: Grok-4-Fast via OpenRouter
+- **Cost**: Free
 - **Quality**: Excellent nutritional analysis accuracy
 - **Speed**: Fast response times with high reliability
 
@@ -324,7 +324,7 @@ npm run android # Android emulator
 ## 📊 Performance
 
 ### Benchmarks
-- **API Response Time**: <2 seconds for simple queries, <30 seconds for complex analysis
+- **API Response Time**: <2 seconds for simple queries, <2 minutes for complex analysis
 - **Mobile App Startup**: <3 seconds on modern devices
 - **Offline Functionality**: Full feature parity without network connectivity
 - **Memory Usage**: <50MB RAM usage on mobile devices
@@ -356,7 +356,6 @@ This project is part of the AWS Hackathon 2025 submission.
 ## 🙏 Acknowledgments
 
 - **OpenRouter** for providing cost-effective AI API access
-- **Anthropic** for the Claude-3 language model
 - **AWS** for serverless infrastructure and Hackathon sponsorship
 - **React Native Community** for excellent cross-platform development tools
 
