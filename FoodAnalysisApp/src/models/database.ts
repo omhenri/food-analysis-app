@@ -1,7 +1,7 @@
 // Database configuration
-export const DATABASE_NAME = 'FoodAnalysisApp.db';
+export const DATABASE_NAME = 'Rejuvenai.db';
 export const DATABASE_VERSION = '1.0';
-export const DATABASE_DISPLAY_NAME = 'Food Analysis Database';
+export const DATABASE_DISPLAY_NAME = 'Rejuvenai Database';
 export const DATABASE_SIZE = 200000;
 
 // Table creation SQL statements

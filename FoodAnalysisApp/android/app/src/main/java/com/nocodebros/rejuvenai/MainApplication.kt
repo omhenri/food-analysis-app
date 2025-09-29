@@ -1,4 +1,4 @@
-package com.foodanalysisapp
+package com.nocodebros.rejuvenai
 
 import android.app.Application
 import com.facebook.react.PackageList
