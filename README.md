@@ -13,7 +13,7 @@
 
 ### 🎯 Key Features
 
-- **🧠 AI-Powered Analysis**: Claude-3 integration via OpenRouter for accurate food composition analysis
+- **🧠 AI-Powered Analysis**: The most advanced model integration via OpenRouter for accurate food composition analysis
 - **📊 Comprehensive Nutrition**: Detailed breakdown of macronutrients, micronutrients, vitamins, and minerals
 - **⚡ Real-Time Processing**: Asynchronous processing handles complex AI requests without blocking the UI
 - **📱 Cross-Platform**: Native iOS and Android apps built with React Native
