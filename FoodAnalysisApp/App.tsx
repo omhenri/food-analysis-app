@@ -14,15 +14,7 @@ function App(): React.JSX.Element {
         const analysisService = AnalysisServiceManager.getInstance();
 
         // Configure backend URL
-        let backendUrl = 'http://localhost:8000'; // Default for Android emulator/web
-
-        // For iOS simulator, localhost doesn't work, use your machine's IP
-        const isIOSSimulator = __DEV__ && Platform.OS === 'ios';
-        if (isIOSSimulator) {
-          // Replace with your computer's IP address (run: ipconfig getifaddr en0 on Mac)
-          const computerIP = '192.168.20.10'; // Update this with your IP
-          backendUrl = `https://b0n6yk30hl.execute-api.us-east-1.amazonaws.com/`;
-        }
+        let backendUrl = 'https://b0n6yk30hl.execute-api.us-east-1.amazonaws.com/'; // Default for Android emulator/web
 
         // Configure backend for analysis service with reasonable timeout (2 minutes for async polling)
         const extendedTimeout = 2 * 60 * 1000; // 2 minutes in milliseconds
