@@ -27,26 +27,26 @@
 ### System Components
 
 ```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Mobile App    │    │   Backend API   │    │   AI Services   │
-│   (React Native)│◄──►│  (Flask/Python) │◄──►│ (OpenRouter/Claude)│
-│                 │    │                 │    │                 │
-│ • Food Input    │    │ • Async Jobs    │    │ • Food Analysis │
-│ • Analysis UI   │    │ • Job Queue     │    │ • Recommendations│
-│ • Historical    │    │ • Data Processing│    │ • Nutrient Calc │
-│ • Reports       │    │ • Rate Limiting │    │                 │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-                              │
-                              ▼
-                   ┌─────────────────┐
-                   │   Cloud Infra   │
-                   │    (AWS)        │
-                   │                 │
-                   │ • Lambda        │
-                   │ • API Gateway   │
-                   │ • DynamoDB      │
-                   │ • SQS           │
-                   └─────────────────┘
+┌─────────────────┐    ┌──────────────────┐    ┌──────────────────┐
+│   Mobile App    │    │   Backend API    │    │   AI Services    │
+│   (React Native)│◄──►│  (Flask/Python)  │◄──►│  (OpenRouter)    │
+│                 │    │                  │    │                  │
+│ • Food Input    │    │ • Async Jobs     │    │ • Food Analysis  │
+│ • Analysis UI   │    │ • Job Queue      │    │ • Recommendations│
+│ • Historical    │    │ • Data Processing│    │ • Nutrient Calc  │
+│ • Reports       │    │ • Rate Limiting  │    │                  │
+└─────────────────┘    └──────────────────┘    └──────────────────┘
+                                 │
+                                 ▼
+                        ┌─────────────────┐
+                        │   Cloud Infra   │
+                        │    (AWS)        │
+                        │                 │
+                        │ • Lambda        │
+                        │ • API Gateway   │
+                        │ • DynamoDB      │
+                        │ • SQS           │
+                        └─────────────────┘
 ```
 
 ### Tech Stack
@@ -63,7 +63,7 @@
 #### Backend (API)
 - **Framework**: Flask + Serverless Framework
 - **Language**: Python 3.10
-- **AI Integration**: OpenRouter API (Claude-3-Haiku)
+- **AI Integration**: OpenRouter API 
 - **Async Processing**: AWS SQS + DynamoDB
 - **Deployment**: AWS Lambda (ARM64)
 - **Rate Limiting**: IP-based request throttling
@@ -252,7 +252,7 @@ aws configure
 
 ## 🤖 AI Integration
 
-### Claude-3 Powered Analysis
+### Powered Analysis
 
 **Technology Stack:**
 - **Model**: Grok-4-Fast via OpenRouter
