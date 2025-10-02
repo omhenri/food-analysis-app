@@ -47,7 +47,7 @@ provider:
 
   # Lambda function configuration
   timeout: 300  # 5 minutes for AI processing
-  memorySize: 1024  # 1GB RAM
+  memorySize: 2048  # 1GB RAM
 
 functions:
   api:
@@ -76,6 +76,7 @@ functions:
 plugins:
   - serverless-python-requirements
   - serverless-dotenv-plugin
+  - serverless-plugin-warmup
 
 custom:
   pythonRequirements:
@@ -89,6 +90,17 @@ custom:
       - pytest
       - pytest-cov
       - coverage
+
+  warmup:
+    # Keep Lambda functions warm to reduce cold start latency
+    enabled: false  # Temporarily disabled due to runtime issues
+    events:
+      - schedule: 'rate(5 minutes)'  # Run every 5 minutes
+    prewarm: true  # Send pre-warm events before actual traffic
+    concurrency: 1  # Number of concurrent warm-up executions
+    payload:
+      source: serverless-plugin-warmup
+    payloadRaw: true
 
 package:
   patterns:

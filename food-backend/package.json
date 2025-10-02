@@ -16,7 +16,8 @@
   },
   "devDependencies": {
     "serverless-python-requirements": "^6.1.0",
-    "serverless-dotenv-plugin": "^6.0.0"
+    "serverless-dotenv-plugin": "^6.0.0",
+    "serverless-plugin-warmup": "^4.2.0"
   },
   "keywords": [
     "serverless",

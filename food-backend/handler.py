@@ -26,5 +26,10 @@ def handler(event, context):
     """
     AWS Lambda handler using serverless-wsgi
     """
+    # Handle warmup events from serverless-plugin-warmup
+    if event.get('source') == 'serverless-plugin-warmup':
+        logger.info("Warm-up event received - keeping function warm")
+        return {'statusCode': 200, 'body': 'Warm-up successful'}
+
     logger.info(f"Processing request: {event.get('requestContext', {}).get('httpMethod', 'UNKNOWN')} {event.get('requestContext', {}).get('path', 'UNKNOWN')}")
     return handle_request(get_app(), event, context)
